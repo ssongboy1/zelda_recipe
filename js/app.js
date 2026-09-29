@@ -1,6 +1,23 @@
 (function () {
-  const { EFFECTS, INGREDIENTS, CATEGORIES, RECIPES } = window.ZDATA;
-  const { cook, BY_ID, inGame, slotMatches, MAX_HP } = window.ZCOOK;
+  const { EFFECTS, GAMES } = window.ZDATA;
+  const { cook, recipeBook, optionLabel, material, MAX_HP } = window.ZCOOK;
+
+  const CATEGORIES = [
+    { id: 'all', ko: '전체' },
+    { id: 'fruit', ko: '과일' },
+    { id: 'mushroom', ko: '버섯' },
+    { id: 'veg', ko: '채소·약초' },
+    { id: 'nut', ko: '견과' },
+    { id: 'meat', ko: '육류' },
+    { id: 'fish', ko: '어패류' },
+    { id: 'other', ko: '농축산물·조미료' },
+    { id: 'critter', ko: '벌레류' },
+    { id: 'monster', ko: '몬스터 부위' },
+    { id: 'special', ko: '용·요정·별' },
+    { id: 'mineral', ko: '광석' },
+  ];
+  const CAT_ORDER = Object.fromEntries(CATEGORIES.map((c, i) => [c.id, i]));
+  const slotMatches = (m, part) => part.some((opt) => opt === m.id || opt === m.tag);
 
   const MAX_POT = 5;
   const state = { game: 'totk', pot: [], cat: 'all', query: '', bookQuery: '' };
@@ -125,7 +142,11 @@
     toast.timer = setTimeout(() => t.classList.remove('show'), 1600);
   }
 
-  const available = () => INGREDIENTS.filter((i) => inGame(i, state.game));
+  // 분류 순서대로, 같은 분류 안에서는 게임 속 정렬 순서대로
+  const available = () => GAMES[state.game].materials
+    .map((m, i) => ({ m, i }))
+    .sort((a, b) => (CAT_ORDER[a.m.cat] - CAT_ORDER[b.m.cat]) || (a.i - b.i))
+    .map((x) => x.m);
 
   function fmtTime(sec) {
     const m = Math.floor(sec / 60);
@@ -158,12 +179,12 @@
   function loadHash() {
     const [game, list] = location.hash.slice(1).split('/');
     if (game === 'botw' || game === 'totk') state.game = game;
-    if (list) state.pot = list.split(',').filter((id) => BY_ID[id] && inGame(BY_ID[id], state.game)).slice(0, MAX_POT);
+    if (list) state.pot = list.split(',').filter((id) => material(state.game, id)).slice(0, MAX_POT);
   }
 
   function setGame(game) {
     state.game = game;
-    state.pot = state.pot.filter((id) => inGame(BY_ID[id], game));
+    state.pot = state.pot.filter((id) => material(game, id));
     render();
   }
 
@@ -200,7 +221,7 @@
     for (let i = 0; i < MAX_POT; i++) {
       const id = state.pot[i];
       if (id) {
-        const ing = BY_ID[id];
+        const ing = material(state.game, id);
         slots.push(`<button type="button" class="slot filled" data-remove="${i}" title="${esc(ing.ko)} 빼기">${thumb(ing.en, state.game, ing.cat)}</button>`);
       } else {
         slots.push('<div class="slot"><span class="slot-empty">＋</span></div>');
@@ -215,12 +236,12 @@
     if (!e) return '';
     let body = `${e.icon} <b>${esc(e.prefix)}</b> <span class="muted">${esc(e.ko)}</span>`;
     if (e.level) {
-      body += ` <span class="stars" title="${e.level}단계">${'★'.repeat(e.level)}${'☆'.repeat(e.maxLevel - e.level)}</span>`;
+      body += ` <span class="stars" title="${e.level}단계">${'★'.repeat(e.level)}${'☆'.repeat(Math.max(0, e.maxLevel - e.level))}</span>`;
       body += ` <span class="muted">· ${fmtTime(e.seconds)}</span>`;
     }
     if (e.wheels != null) body += ` <span class="muted">· 스태미나 게이지 ${e.wheels}바퀴</span>`;
     if (e.extraHearts != null) body += `<div style="margin-top:4px">${heartsHtml(e.extraHearts * 4, true)} <span class="muted">노란 하트 +${e.extraHearts}</span></div>`;
-    if (e.gloomHearts != null) body += ` <span class="muted">· 독기 침식 하트 ${e.gloomHearts}칸 복구</span>`;
+    if (e.gloomHearts != null) body += ` <span class="muted">· 독기 대미지 하트 ${e.gloomHearts}칸 회복</span>`;
     return `<div class="stat"><span class="stat-label">효과</span><div>${body}</div></div>`;
   }
 
@@ -244,9 +265,12 @@
     else hp = '<span class="muted">회복 없음</span>';
 
     let recipeHtml = '';
-    if (res.recipe) {
-      recipeHtml = `<div class="stat"><span class="stat-label">레시피</span><div class="recipe-req">${reqHtml(res.recipe)}</div></div>`;
+    if (res.recipe && res.kind !== 'rockhard' && res.kind !== 'dubious') {
+      const row = BOOK[state.game].get(res.recipe.en) || res.recipe;
+      recipeHtml = `<div class="stat"><span class="stat-label">레시피</span><div class="recipe-req">${reqHtml(row)}</div></div>`;
     }
+    const critHtml = res.crit != null
+      ? `<div class="stat"><span class="stat-label">대성공</span><div>${res.crit}% <span class="muted">확률</span></div></div>` : '';
 
     box.innerHTML = `
       <div class="result-main">
@@ -260,6 +284,7 @@
       <div class="stats">
         <div class="stat"><span class="stat-label">회복</span><div>${hp}</div></div>
         ${effectHtml(res.effect)}
+        ${critHtml}
         ${recipeHtml}
       </div>
       ${res.notes.length ? `<div class="notes">${res.notes.map((n) => `<p>💬 ${esc(n)}</p>`).join('')}</div>` : ''}
@@ -348,38 +373,36 @@
   }
 
   // ------------------------------------------------------------ 렌더링: 도감
-  const TAG_KO = {
-    meatany: '육류', meat: '짐승 고기류', poultry: '새 고기류', seafoodany: '어패류', fish: '생선',
-    seafood: '게·우렁이', fruit: '과일', mushroom: '버섯', greens: '채소·약초', nut: '견과류',
-    crab: '게', snail: '소라·우렁이', porgy: '도미', salmon: '맥스연어', pumpkin: '호박',
-    carrot: '당근', radish: '순무', honey: '원기벌의 벌꿀', sugar: '사탕수수', butter: '염소 버터',
-    milk: '신선 우유', egg: '새의 알', cheese: '하테노 치즈', wheat: '타반타 밀', rice: '하이랄 쌀',
-    salt: '암염', spice: '고론의 향신료', extract: '몬스터엑기스', banana: '칼날바나나', apple: '사과',
-    tomato: '하이랄토마토', oil: '기름병', dark: '어둠 덩어리',
-  };
-  const tagKo = (t) => TAG_KO[t] || (BY_ID[t] && BY_ID[t].ko) || t;
+  // 요리별 대표 레시피 (도감과 결과 카드에 표시). 두 게임 중 한쪽에만 있는 요리 표시에도 쓴다
+  const BOOK = Object.fromEntries(Object.keys(GAMES).map((g) => [g, new Map(recipeBook(g).map((r) => [r.en, r]))]));
+  const MEALS = Object.fromEntries(Object.keys(GAMES).map((g) => [g, new Set(BOOK[g].keys())]));
+
+  function partLabel(part) {
+    const names = [...new Set(part.map((opt) => optionLabel(state.game, opt)).filter(Boolean))];
+    return names.join(' 또는 ');
+  }
 
   function reqHtml(r) {
-    const parts = r.req.map((slot) => esc(Array.isArray(slot) ? slot.map(tagKo).join(' 또는 ') : tagKo(slot)));
-    let html = parts.join('<span class="plus">+</span>');
-    if (r.distinct) html = `서로 다른 ${esc(tagKo(r.req[0]))} ${r.distinct}종류 이상`;
-    if (r.only && !r.distinct) html += ` <span class="muted">(${r.only.map(tagKo).join('·')}만)</span>`;
-    return html;
+    const labels = r.parts.map(partLabel);
+    if (r.single) return `${esc(labels[0])} <span class="muted">(이 재료 한 종류만)</span>`;
+    // 같은 분류가 여러 번 필요하면 서로 다른 재료가 그만큼 필요하다 (예: 곱빼기)
+    if (labels.length > 1 && labels.every((l) => l === labels[0])) {
+      return `서로 다른 ${esc(labels[0])} ${labels.length}종류`;
+    }
+    return labels.map(esc).join('<span class="plus">+</span>');
   }
 
   // 레시피를 만드는 예시 재료 조합 (효과 없는 재료 우선, 실제로 그 요리가 나오는지 확인)
   function exampleFor(r) {
-    const pool = available().filter((i) => !['critter', 'monster', 'mineral', 'special', 'dragon'].includes(i.cat))
-      .sort((a, b) => (a.eff ? 1 : 0) - (b.eff ? 1 : 0));
-    const slots = r.distinct ? Array(r.distinct).fill(r.req[0]) : r.req;
-    const makes = (ids) => { const res = cook(ids, state.game); return res && res.recipe === r; };
+    const pool = available().slice().sort((a, b) => (a.eff ? 1 : 0) - (b.eff ? 1 : 0));
+    const makes = (ids) => { const res = cook(ids, state.game); return res && res.recipe && res.recipe.en === r.en; };
     let first = null;
     const search = (i, picked) => {
-      if (i === slots.length) {
+      if (i === r.parts.length) {
         if (!first) first = [...picked];
         return makes(picked) ? picked : null;
       }
-      for (const ing of pool.filter((x) => !picked.includes(x.id) && slotMatches(x, slots[i])).slice(0, 8)) {
+      for (const ing of pool.filter((x) => !picked.includes(x.id) && slotMatches(x, r.parts[i])).slice(0, 6)) {
         const found = search(i + 1, [...picked, ing.id]);
         if (found) return found;
       }
@@ -388,19 +411,20 @@
     return search(0, []) || first || [];
   }
 
+  let bookList = [];
   function renderBook() {
     const q = state.bookQuery.trim().toLowerCase();
-    const list = RECIPES.filter((r) => inGame(r, state.game) &&
-      (!q || r.ko.toLowerCase().includes(q) || r.en.toLowerCase().includes(q)));
-    $('#book').innerHTML = list.map((r, idx) => `
+    const other = state.game === 'totk' ? 'botw' : 'totk';
+    bookList = recipeBook(state.game).filter((r) => !q || r.ko.toLowerCase().includes(q) || r.en.toLowerCase().includes(q));
+    $('#book').innerHTML = bookList.map((r, idx) => `
       <div class="recipe">
-        ${thumb(r.en, state.game, 'dish', 'sm')}
+        ${thumb(r.img, state.game, r.kind === 'elixir' || r.kind === 'fairy' ? 'elixir' : 'dish', 'sm')}
         <div class="recipe-body">
-          <div class="recipe-name">${esc(r.ko)}${r.g && r.g.length === 1 ? `<span class="badge-new">${r.g[0] === 'totk' ? '왕눈' : '야숨'} 전용</span>` : ''}</div>
-          <div class="recipe-en">${esc(r.en)}</div>
+          <div class="recipe-name">${esc(r.ko)}${MEALS[other].has(r.en) ? '' : `<span class="badge-new">${state.game === 'totk' ? '왕눈' : '야숨'} 전용</span>`}</div>
+          <div class="recipe-en">${esc(r.en)}${r.book ? ` · 레시피북 No.${r.book}` : ''}</div>
           <div class="recipe-req">${reqHtml(r)}</div>
         </div>
-        <button type="button" class="ghost" data-try="${RECIPES.indexOf(r)}">담기</button>
+        <button type="button" class="ghost" data-try="${idx}">담기</button>
       </div>`).join('') || '<div class="empty-grid">검색 결과가 없어요</div>';
     loadImages($('#book'));
   }
@@ -460,7 +484,7 @@
   $('#book').addEventListener('click', (e) => {
     const b = e.target.closest('[data-try]');
     if (!b) return;
-    state.pot = exampleFor(RECIPES[Number(b.dataset.try)]);
+    state.pot = exampleFor(bookList[Number(b.dataset.try)]);
     document.querySelector('.tabs button[data-tab="cook"]').click();
     renderCook();
     window.scrollTo({ top: 0, behavior: 'smooth' });

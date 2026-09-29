@@ -1,179 +1,231 @@
 // 요리 계산 엔진
+// 게임의 요리 로직(CookingMgr)을 분석한 공개 구현을 바탕으로 한다.
+//  - 야생의 숨결: savage13/cooking
+//  - 왕국의 눈물: Echocolat/TOTK-Cooking-Calculator
+// 두 게임은 계산식이 같고, 레시피를 고르는 방식과 재료 수치만 다르다.
 (function (root) {
   const D = root.ZDATA || (typeof require !== 'undefined' ? require('./data.js') : null);
-  const { EFFECTS, INGREDIENTS, RECIPES, SPECIAL } = D;
+  const { EFFECTS, GAMES, TAG_KO } = D;
 
-  const BY_ID = Object.fromEntries(INGREDIENTS.map((i) => [i.id, i]));
-  const MAX_HP = 120;          // 30하트 (1/4 하트 단위)
-  const MAX_TIME = 30 * 60;    // 30분
-  const FAIRY_HP = 40;         // 요정 1마리당 10하트
-  const BASE_TIME = 30;        // 효과 없는 식재료 1개당 30초
+  const MAX_HP = 120;         // 30하트 (1/4 하트 단위)
+  const MAX_TIME = 30 * 60;   // 30분
+  const TIME_PER_ITEM = 30;   // 재료 하나당 기본 30초
+  const f32 = Math.fround;    // 게임은 32비트 실수로 계산한다
 
-  const inGame = (x, game) => !x.g || x.g.includes(game);
-  const hasTag = (ing, tag) => ing.tags.includes(tag);
-  const slotMatches = (ing, slot) =>
-    Array.isArray(slot) ? slot.some((t) => hasTag(ing, t)) : hasTag(ing, slot);
+  // 게임별 재료 색인
+  const INDEX = {};
+  for (const [game, G] of Object.entries(GAMES)) {
+    INDEX[game] = Object.fromEntries(G.materials.map((m) => [m.id, m]));
+  }
+  const material = (game, id) => INDEX[game][id];
+  const isTag = (opt) => opt.startsWith('Cook');
+  const unique = (list) => [...new Map(list.map((m) => [m.id, m])).values()];
 
-  // 각 슬롯을 서로 다른 재료 종류로 채울 수 있는지 (작은 규모라 백트래킹)
-  function assign(slots, types, used = new Set(), i = 0) {
-    if (i === slots.length) return true;
-    for (const t of types) {
-      if (used.has(t.id) || !slotMatches(t, slots[i])) continue;
-      used.add(t.id);
-      if (assign(slots, types, used, i + 1)) return true;
-      used.delete(t.id);
+  // ------------------------------------------------------------------ 레시피 찾기
+  // 왕국의 눈물: 재료 "종류" 목록으로 판정한다. 각 조건마다 앞쪽 선택지부터 먼저 찾는다.
+  function matchTotk(G, mats) {
+    const uniq = unique(mats);
+    const hits = (m, opt) => m.id === opt || m.tag === opt;
+    const singleMatch = (first) => G.singles.find((r) => r.parts[0].some((opt) => hits(first, opt)));
+
+    if (uniq.length === 1) return singleMatch(uniq[0]) || null;
+
+    for (const r of G.recipes) {
+      if (r.parts.length > uniq.length) continue;
+      const left = [...uniq];
+      const ok = r.parts.every((part) => part.some((opt) => {
+        const i = left.findIndex((m) => hits(m, opt));
+        if (i < 0) return false;
+        left.splice(i, 1);
+        return true;
+      }));
+      if (ok) return r;
     }
-    return false;
+    // 맞는 레시피가 없고 조미료가 섞여 있으면 첫 재료로 단일 레시피를 한 번 더 찾는다
+    const tags = new Set(uniq.map((m) => m.tag));
+    if (tags.has('CookSpice') && tags.size >= 2) return singleMatch(uniq[0]) || null;
+    return null;
   }
 
-  function matchRecipe(foods, game) {
-    const types = [...new Map(foods.map((f) => [f.id, f])).values()];
-    const candidates = RECIPES.filter((r) => inGame(r, game));
-    let strict = null;
-    let relaxed = null;
-
-    for (const r of candidates) {
-      if (!assign(r.req, types)) continue;
-      if (r.distinct && types.filter((t) => slotMatches(t, r.req[0])).length < r.distinct) continue;
-      const pri = r.pri ?? r.req.length;
-      const onlyOk = !r.only || types.every((t) => r.only.some((tag) => hasTag(t, tag)));
-      if (onlyOk) {
-        if (!strict || pri > strict.pri) strict = { r, pri };
-        continue;
-      }
-      // 딱 맞는 레시피가 없을 때를 위해, 가장 많은 재료를 설명하는 레시피를 기억
-      const tags = [...r.req.flat(), ...(r.only || [])];
-      const coverage = types.filter((t) => tags.some((tag) => hasTag(t, tag))).length;
-      if (!relaxed || coverage > relaxed.coverage || (coverage === relaxed.coverage && pri > relaxed.pri)) {
-        relaxed = { r, pri, coverage };
-      }
+  // 야생의 숨결: 한 종류만 넣었을 때는 단일 레시피, 아니면 순서대로 판정한다.
+  // 조건에 맞는 재료를 찾으면 그 재료는 개수와 상관없이 모두 소비된다.
+  function matchBotw(G, mats) {
+    if (unique(mats).length === 1) {
+      const m = mats[0];
+      const r = G.singles.find((row) => row.parts[0].some((opt) => opt === m.id || opt === m.tag));
+      if (r) return r;
     }
-    return strict ? strict.r : relaxed ? relaxed.r : null;
+    for (const r of G.recipes) {
+      let left = [...mats];
+      let ok = true;
+      for (const part of r.parts) {
+        let found = null;
+        if (isTag(part[0])) {
+          // 태그 조건: 선택지를 모두 훑고 마지막으로 맞은 것을 쓴다 (게임 동작 그대로)
+          for (const opt of part) {
+            const m = left.find((x) => x.tag === opt);
+            if (m) found = m;
+          }
+        } else {
+          const opt = part.find((o) => left.some((x) => x.id === o));
+          if (opt) found = left.find((x) => x.id === opt);
+        }
+        if (!found) { ok = false; break; }
+        left = left.filter((x) => x.id !== found.id);
+      }
+      if (ok) return r;
+    }
+    return null;
   }
 
-  function fmtWheel(points) {
-    return Math.round(points * 0.2 * 10) / 10; // 1포인트 = 스태미나 게이지 1/5
+  function findRecipe(game, mats) {
+    return game === 'totk' ? matchTotk(GAMES[game], mats) : matchBotw(GAMES[game], mats);
   }
 
-  // 재료 하나가 효과 지속시간에 더하는 초
-  function durationOf(i, key) {
-    if (i.cat === 'monster' || i.cat === 'dragon' || i.cat === 'special') return i.time;
-    if (i.time) return i.time;
-    if (i.eff === key) return EFFECTS[key].time;
-    return BASE_TIME;
+  // ------------------------------------------------------------------ 효과
+  function effectLevel(type, potency, game) {
+    const E = EFFECTS[type];
+    if (type === 'LifeMaxUp' || type === 'LifeRepair') {
+      // 1/4 하트 단위 → 하트 수. 왕눈은 가장 가까운 한 칸으로 반올림, 야숨은 내림
+      const q = Math.min(potency * E.rate, E.max);
+      if (game === 'totk') return Math.max(4, 4 * Math.round(q / 4)) / 4;
+      return Math.max(1, Math.floor(q / 4));
+    }
+    const raw = Math.min(f32(f32(E.rate) * potency), E.max);
+    return Math.max(E.min, Math.floor(raw));
   }
 
-  function computeEffect(items, notes) {
-    const effItems = items.filter((i) => i.eff);
-    const kinds = [...new Set(effItems.map((i) => i.eff))];
-    if (kinds.length === 0) return null;
-    if (kinds.length > 1) {
-      notes.push(`서로 다른 효과(${kinds.map((k) => EFFECTS[k].ko).join(', ')})가 섞여서 효과가 사라졌어요.`);
+  function computeEffect(game, mats, recipe, notes) {
+    const types = [...new Set(mats.filter((m) => m.eff).map((m) => m.eff))];
+    if (types.length === 0) return null;
+    if (types.length > 1) {
+      notes.push(`서로 다른 효과(${types.map((t) => EFFECTS[t].prefix).join(', ')})가 섞여서 효과가 사라졌어요.`);
       return null;
     }
-    const key = kinds[0];
-    const def = EFFECTS[key];
-    const points = effItems.reduce((s, i) => s + i.pot, 0);
-    const e = { key, ...def, points };
+    const type = types[0];
+    const E = EFFECTS[type];
+    const potency = mats.filter((m) => m.eff === type).reduce((s, m) => s + m.pot, 0);
+    const level = effectLevel(type, potency, game);
+    const e = { type, prefix: E.prefix, ko: E.ko, en: E.en, icon: E.icon, potency };
 
-    if (key === 'hearty') {
-      e.extraHearts = Math.min(points, 25);
-    } else if (key === 'energizing') {
-      e.wheels = Math.min(fmtWheel(points), 3);
-    } else if (key === 'enduring') {
-      e.wheels = Math.min(fmtWheel(points), 2);
-    } else if (key === 'sunny') {
-      e.gloomHearts = Math.min(points, 20);
-    } else {
-      e.maxLevel = def.fixedLevel || def.lv.length + 1;
-      e.level = def.fixedLevel || 1 + def.lv.filter((th) => points >= th).length;
-      if (def.fixedLevel) notes.push('속성 열매는 몇 개를 넣어도 효과가 Lv1로 고정돼요.');
-      const t = items.reduce((s, i) => s + durationOf(i, key), 0);
+    if (type === 'LifeMaxUp') e.extraHearts = level;
+    else if (type === 'LifeRepair') e.gloomHearts = level;
+    else if (type === 'StaminaRecover' || type === 'ExStaminaMaxUp') e.wheels = Math.round(level / 5 * 10) / 10;
+    else {
+      e.level = level;
+      e.maxLevel = E.max;
+      // 지속시간: 재료마다 30초 + 효과 재료마다 효과 기본 시간 + 재료별 추가 시간
+      const count = mats.filter((m) => m.eff === type).length;
+      let t = mats.reduce((s, m) => s + (m.base ?? TIME_PER_ITEM), 0) + count * E.baseTime;
+      if (game === 'totk') {
+        // 몬스터 부위는 개수만큼, 나머지 재료는 종류당 한 번만 더한다
+        t += mats.filter((m) => m.tag === 'CookEnemy').reduce((s, m) => s + (m.sTime || 0), 0);
+        t += unique(mats).filter((m) => m.tag !== 'CookEnemy').reduce((s, m) => s + (m.sTime || 0), 0);
+        t += recipe.bonusTime || 0;
+      } else {
+        t += mats.reduce((s, m) => s + (m.sTime || 0), 0);
+      }
       e.seconds = Math.min(t, MAX_TIME);
     }
     return e;
   }
 
+  // ------------------------------------------------------------------ 요리
+  function failNote(mats, notes) {
+    const food = mats.filter((m) => !['CookInsect', 'CookEnemy', 'CookOre'].includes(m.tag));
+    const bugs = mats.some((m) => m.tag === 'CookInsect');
+    const parts = mats.some((m) => m.tag === 'CookEnemy');
+    if (bugs && !parts) notes.push('벌레류는 몬스터 부위와 함께 넣어야 물약이 돼요.');
+    else if (parts && !bugs) notes.push(food.length ? '몬스터 부위는 식재료와 함께 요리할 수 없어요. 벌레류와 함께 넣으면 물약이 됩니다.' : '몬스터 부위만으로는 요리가 되지 않아요. 벌레류와 함께 넣으면 물약이 됩니다.');
+    else if (bugs && parts) notes.push('물약에는 벌레류·몬스터 부위와 같은 효과(또는 효과 없는) 재료만 넣을 수 있어요.');
+    else notes.push('이 조합에 맞는 레시피가 없어요.');
+  }
+
   function cook(ids, game) {
-    const items = ids.map((id) => BY_ID[id]).filter((i) => i && inGame(i, game));
-    if (items.length === 0) return null;
-
+    const G = GAMES[game];
+    const mats = ids.map((id) => material(game, id)).filter(Boolean);
+    if (mats.length === 0) return null;
     const notes = [];
-    const rawHp = items.reduce((s, i) => s + i.hp, 0);
-    const fairies = items.filter((i) => i.id === 'fairy').length;
-    const critters = items.filter((i) => i.cat === 'critter');
-    const monsters = items.filter((i) => i.cat === 'monster');
-    const foods = items.filter((i) => !['critter', 'monster', 'mineral'].includes(i.cat) && !hasTag(i, 'neutral'));
-    const heal = (hp) => Math.min(MAX_HP, hp * 2 + FAIRY_HP * fairies);
+    const rawHp = mats.reduce((s, m) => s + (m.hp || 0), 0);
+    const base = { mats, notes };
 
-    const dubious = (why) => {
-      if (why) notes.push(why);
-      return { kind: 'dubious', ...SPECIAL.dubious, img: SPECIAL.dubious.en, hp: Math.max(4, rawHp), notes, items };
-    };
-    const critNote = () => {
-      if (items.some((i) => hasTag(i, 'crit'))) {
-        notes.push('용의 소재·별의 조각·황금 사과·기브도의 간을 넣으면 반드시 대성공(보너스 효과)이 나요. (보너스는 계산에 넣지 않았어요)');
-      }
-      if (items.some((i) => i.id === 'monster_extract')) {
-        notes.push('몬스터엑기스는 효과 레벨과 지속시간을 무작위로 바꿔요. 표시된 값은 엑기스를 빼고 계산한 값이에요.');
-      }
-    };
+    const dubious = (hp) => ({ ...base, kind: 'dubious', ko: '애매한 요리', en: 'Dubious Food', img: 'Dubious Food', hp });
 
-    // 광석 · 장작이 들어가면 먹을 수 없는 요리
-    if (items.some((i) => i.cat === 'mineral')) {
-      notes.push('광석이나 장작은 먹을 수 없어요. 1/4하트만 회복됩니다.');
-      return { kind: 'rockhard', ...SPECIAL.rockhard, img: SPECIAL.rockhard.en, hp: 1, notes, items };
+    let recipe = findRecipe(game, mats);
+    if (!recipe) {
+      failNote(mats, notes);
+      return dubious(game === 'totk' ? 4 : Math.max(4, rawHp));
+    }
+    if (recipe.kind === 'rockhard') {
+      notes.push('광석이나 장작처럼 먹을 수 없는 것이 들어갔어요. 1/4하트만 회복됩니다.');
+      return { ...base, kind: 'rockhard', ko: recipe.ko, en: recipe.en, img: recipe.img, hp: 1, recipe };
+    }
+    if (recipe.kind === 'dubious' || recipe.kind === 'fail') {
+      failNote(mats, notes);
+      return { ...dubious(Math.max(4, rawHp)), recipe };
     }
 
-    // 요정만
-    if (fairies === items.length) {
-      return { kind: 'fairy', ...SPECIAL.fairy, img: SPECIAL.fairy.en, hp: Math.min(MAX_HP, FAIRY_HP * fairies), notes, items };
+    const effect = recipe.kind === 'fairy' ? null : computeEffect(game, mats, recipe, notes);
+    if (recipe.kind === 'elixir' && !effect) {
+      if (!notes.length) notes.push('물약에는 효과가 있는 벌레류가 필요해요.');
+      return dubious(Math.max(4, rawHp));
     }
 
-    // 물약: 벌레류 + 몬스터 부위 (같은 효과이거나 효과 없는 식재료는 함께 넣을 수 있음)
-    if (critters.length > 0 || monsters.length > 0) {
-      if (critters.length === 0) {
-        return dubious(foods.length
-          ? '몬스터 부위는 식재료와 함께 요리할 수 없어요. 벌레류와 함께 넣어야 물약이 됩니다.'
-          : '몬스터 부위만으로는 요리가 되지 않아요. 벌레류와 함께 넣으면 물약이 됩니다.');
-      }
-      if (monsters.length === 0) {
-        return dubious(foods.length
-          ? '벌레류는 식재료만으로는 요리할 수 없어요. 몬스터 부위를 하나 이상 넣어야 물약이 됩니다.'
-          : '물약을 만들려면 몬스터 부위가 하나 이상 필요해요.');
-      }
-      const effect = computeEffect(items, notes);
-      if (!effect) return dubious();
-      critNote();
-      const res = {
-        kind: 'elixir', en: `${effect.en} Elixir`, ko: `${effect.prefix} 물약`, img: `${effect.en} Elixir`,
-        hp: heal(rawHp), effect, notes, items,
-      };
-      if (effect.key === 'hearty') res.fullRecovery = true;
-      return res;
+    // 회복량: 재료 회복량 × 2 + 재료별 추가 회복(종류당 한 번) + 레시피 보너스
+    let hp = rawHp * 2;
+    hp += unique(mats).filter((m) => game !== 'totk' || m.tag !== 'CookEnemy').reduce((s, m) => s + (m.sHp || 0), 0);
+    hp += recipe.bonusHp || 0;
+    hp = Math.max(0, Math.min(MAX_HP, hp));
+    if (game === 'totk' && !effect && hp === 0) hp = 1; // 왕눈: 효과도 회복도 없는 요리는 1/4하트
+
+    // 대성공 확률: 재료 중 가장 높은 대성공 보너스 + 재료 종류 수에 따른 기본 확률
+    const hasExtract = mats.some((m) => m.en === 'Monster Extract');
+    let crit = Math.min(100, Math.max(0, ...mats.map((m) => m.crit || 0)) + G.critByTypes[unique(mats).length - 1]);
+    if (hasExtract) {
+      crit = 0;
+      notes.push('몬스터엑기스는 회복량·효과 단계·지속시간을 무작위로 바꾸고, 대성공이 나지 않아요. 표시된 값은 엑기스 효과를 빼고 계산한 값이에요.');
+    } else if (crit >= 100) {
+      notes.push('용의 소재나 별의 조각이 들어가서 반드시 대성공해요. 대성공하면 하트 +3칸, 효과 1단계 상승, 지속시간 +5분 중 하나가 붙어요.');
     }
 
-    if (foods.length === 0) return dubious('먹을 수 있는 재료가 필요해요.');
-
-    const salts = foods.filter((i) => i.id === 'rock_salt').length;
-    if (salts > foods.length - salts) return dubious('암염이 다른 식재료보다 많으면 애매한 요리가 돼요.');
-
-    const recipe = matchRecipe(foods, game);
-    if (!recipe) return dubious('이 조합에 맞는 레시피가 없어요.');
-
-    const effect = computeEffect(items, notes);
-    critNote();
-    const res = {
-      kind: 'dish',
-      en: effect ? `${effect.en} ${recipe.en}` : recipe.en,
-      ko: effect ? `${effect.prefix} ${recipe.ko}` : recipe.ko,
-      img: recipe.en, recipe, hp: heal(rawHp), effect, notes, items,
-    };
-    if (effect && effect.key === 'hearty') res.fullRecovery = true;
+    const res = { ...base, recipe, effect, hp, crit, img: recipe.img };
+    if (recipe.kind === 'elixir') {
+      Object.assign(res, { kind: 'elixir', ko: `${effect.prefix} ${G.elixir.ko}`, en: `${effect.en} ${G.elixir.en}` });
+      res.img = res.en;
+    } else {
+      Object.assign(res, {
+        kind: recipe.kind === 'fairy' ? 'fairy' : 'dish',
+        ko: effect ? `${effect.prefix} ${recipe.ko}` : recipe.ko,
+        en: effect ? `${effect.en} ${recipe.en}` : recipe.en,
+      });
+    }
+    if (effect && effect.type === 'LifeMaxUp') res.fullRecovery = true;
+    if (hp >= MAX_HP) res.fullRecovery = true;
     return res;
   }
 
-  const api = { cook, matchRecipe, BY_ID, inGame, slotMatches, MAX_HP };
+  // ------------------------------------------------------------------ 레시피 도감용
+  // 요리마다 가장 간단한 판정 조건 한 줄을 고른다
+  function recipeBook(game) {
+    const G = GAMES[game];
+    const best = new Map();
+    for (const r of [...G.recipes, ...G.singles]) {
+      if (r.kind === 'dubious' || r.kind === 'fail' || r.kind === 'rockhard') continue;
+      const cur = best.get(r.en);
+      if (!cur || r.parts.length < cur.parts.length || (r.parts.length === cur.parts.length && cur.single && !r.single)) {
+        best.set(r.en, r);
+      }
+    }
+    return [...best.values()].sort((a, b) => (a.book || 999) - (b.book || 999));
+  }
+
+  function optionLabel(game, opt) {
+    if (isTag(opt)) return TAG_KO[opt] || opt;
+    const m = material(game, opt);
+    return m ? m.ko : null;
+  }
+
+  const api = { cook, findRecipe, recipeBook, optionLabel, material, MAX_HP, INDEX };
   root.ZCOOK = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

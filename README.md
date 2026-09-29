@@ -16,20 +16,34 @@
 - **레시피 도감** 탭에서 모든 요리와 필요한 재료를 보고, "담기"로 예시 조합을 냄비에 넣을 수 있습니다.
 - "링크 복사"로 현재 조합을 공유할 수 있습니다 (`#totk/apple,apple` 형태의 주소).
 
-## 반영된 규칙
+## 정확도와 데이터 출처
 
-재료·요리 이름(한글판 명칭), 레시피, 지속시간은 나무위키 「젤다의 전설 브레스 오브 더 와일드/아이템」,
-「젤다의 전설 티어스 오브 더 킹덤/아이템/요리」 문서를 기준으로 했습니다.
+계산은 게임의 요리 로직을 분석한 공개 구현을 따릅니다.
 
-- 요리는 재료 회복량의 2배를 회복. 서로 다른 효과가 섞이면 효과가 사라짐
-- 효과 단계: 효과 포인트 합 30 이상 Lv2, 45 이상 Lv3 (칼날바나나 4개 → Lv3)
-- 지속시간: 재료마다 고유 시간을 더함 (일반 재료 30초, 몬스터 부위 뿔 70초 · 이빨 110초 · 간 190초, 용의 뿔 30분)
-- 벌레류 + 몬스터 부위 → 물약 (같은 효과이거나 효과 없는 식재료는 추가 가능)
-- 몬스터 부위나 벌레류를 식재료와 섞으면 애매한 요리 (두 게임 모두)
-- 광석·장작 → 너무 딱딱한 요리, 요정만 → 요정의 활력수, 암염이 식재료보다 많으면 애매한 요리
-- 맥스 재료 → 체력 완전 회복 + 추가 하트, 속성 열매(왕눈)는 효과 Lv1 고정
+- 야생의 숨결: [savage13/cooking](https://github.com/savage13/cooking) (BSD 2-Clause)
+- 왕국의 눈물: [Echocolat/TOTK-Cooking-Calculator](https://github.com/Echocolat/TOTK-Cooking-Calculator)
 
-재료별 효과 포인트는 공개된 값이 적어 **근사치**이고, 대성공 보너스는 반영하지 않습니다.
+재료별 회복량 · 효과 포인트 · 추가 시간, 레시피 판정 순서(야숨 138줄, 왕눈 175줄), 효과 배율,
+대성공 확률을 게임 데이터 그대로 씁니다. 한국어 재료·요리·효과 이름은 왕국의 눈물 게임 텍스트(한글판)를 쓰고,
+야숨에만 있는 것은 나무위키의 한글판 명칭으로 채웠습니다.
+
+확인한 내용:
+
+- 야생의 숨결에서 실제로 요리해 기록한 결과 615건과 모두 일치 (`node test/botw_ingame.test.js`)
+- 무작위 조합 2만 건씩 두 참조 구현과 비교해 차이 없음 (몬스터엑기스처럼 결과가 무작위인 경우 제외)
+- 나무위키 예시 26건 일치 (`node test/cook.test.js`)
+
+대성공 보너스와 몬스터엑기스의 무작위 효과는 결과에 넣지 않고 확률과 안내만 보여줍니다.
+
+### 데이터 다시 만들기
+
+```
+git clone https://github.com/savage13/cooking ../savage13-cooking
+git clone https://github.com/Echocolat/TOTK-Cooking-Calculator ../totk-cooking
+python3 tools/import_data.py --botw ../savage13-cooking --totk ../totk-cooking   # js/data.js 생성
+node tools/verify.mjs ../savage13-cooking ../totk-cooking 20000                  # 참조 구현과 비교
+node tools/build-single.js                                                       # zelda_recipe.html 생성
+```
 
 ## 이미지
 
@@ -42,10 +56,10 @@
 ```
 index.html        화면
 css/style.css     스타일 (라이트/다크 모드)
-js/data.js        재료 · 효과 · 레시피 데이터
+js/data.js        재료 · 효과 · 레시피 데이터 (tools/import_data.py 가 생성)
 js/cook.js        요리 계산 엔진
 js/app.js         UI
-test/cook.test.js 엔진 테스트 (node test/cook.test.js)
+test/             테스트 (야숨 실제 결과 615건, 나무위키 예시)
+tools/            데이터 변환 · 참조 구현 비교 · 단일 파일 빌드
 ```
 
-재료나 레시피를 추가하려면 `js/data.js`의 `RAW`, `RECIPES` 배열에 한 줄씩 추가하면 됩니다.
