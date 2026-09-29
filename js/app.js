@@ -173,14 +173,14 @@
 
   function effectHtml(e) {
     if (!e) return '';
-    let body = `${e.icon} <b>${esc(e.ko)}</b>`;
+    let body = `${e.icon} <b>${esc(e.prefix)}</b> <span class="muted">${esc(e.ko)}</span>`;
     if (e.level) {
       body += ` <span class="stars" title="${e.level}단계">${'★'.repeat(e.level)}${'☆'.repeat(e.maxLevel - e.level)}</span>`;
       body += ` <span class="muted">· ${fmtTime(e.seconds)}</span>`;
     }
-    if (e.wheels != null) body += ` <span class="muted">· 기력 게이지 ${e.wheels}바퀴</span>`;
+    if (e.wheels != null) body += ` <span class="muted">· 스태미나 게이지 ${e.wheels}바퀴</span>`;
     if (e.extraHearts != null) body += `<div style="margin-top:4px">${heartsHtml(e.extraHearts * 4, true)} <span class="muted">노란 하트 +${e.extraHearts}</span></div>`;
-    if (e.gloomHearts != null) body += ` <span class="muted">· 음기 하트 ${e.gloomHearts}칸 회복</span>`;
+    if (e.gloomHearts != null) body += ` <span class="muted">· 독기 침식 하트 ${e.gloomHearts}칸 복구</span>`;
     return `<div class="stat"><span class="stat-label">효과</span><div>${body}</div></div>`;
   }
 
@@ -192,7 +192,7 @@
       return;
     }
     const kindLabel = {
-      dish: ['요리', ''], elixir: ['엘릭서', 'elixir'], fairy: ['영약', 'elixir'],
+      dish: ['요리', ''], elixir: ['물약', 'elixir'], fairy: ['물약', 'elixir'],
       dubious: ['실패', 'bad'], rockhard: ['실패', 'bad'],
     }[res.kind];
     const emojiKey = res.kind === 'dish' ? 'dish' : res.kind;
@@ -247,7 +247,7 @@
 
     $('#grid').innerHTML = list.length ? list.map((i) => `
       <button type="button" class="tile" data-add="${i.id}" title="${esc(i.en)}"${full ? ' disabled' : ''}>
-        ${i.eff ? `<span class="tile-eff" title="${esc(EFFECTS[i.eff].ko)}">${EFFECTS[i.eff].icon}</span>` : ''}
+        ${i.eff ? `<span class="tile-eff" title="${esc(EFFECTS[i.eff].prefix + ' · ' + EFFECTS[i.eff].ko)}">${EFFECTS[i.eff].icon}</span>` : ''}
         ${counts[i.id] ? `<span class="tile-count">${counts[i.id]}</span>` : ''}
         ${thumb(i.en, state.game, i.cat)}
         <span class="tile-name">${esc(i.ko)}</span>
@@ -263,12 +263,13 @@
 
   // ------------------------------------------------------------ 렌더링: 도감
   const TAG_KO = {
-    meatany: '고기', meat: '짐승 고기', poultry: '새고기', seafoodany: '생선·해산물', fish: '생선',
-    seafood: '게·조개', fruit: '과일', mushroom: '버섯', greens: '채소·허브·꽃', nut: '견과',
-    crab: '게', snail: '소라·우렁이', porgy: '도미', salmon: '튼튼 연어', pumpkin: '호박',
-    carrot: '당근', radish: '튼튼 무', honey: '벌꿀', sugar: '사탕수수 설탕', butter: '염소 버터',
-    milk: '신선한 우유', egg: '새알', cheese: '하테노 치즈', wheat: '타반타 밀', rice: '하이랄 쌀',
-    salt: '암염', spice: '고론 향신료', extract: '몬스터 엑기스', banana: '마이티 바나나', apple: '사과',
+    meatany: '육류', meat: '짐승 고기류', poultry: '새 고기류', seafoodany: '어패류', fish: '생선',
+    seafood: '게·우렁이', fruit: '과일', mushroom: '버섯', greens: '채소·약초', nut: '견과류',
+    crab: '게', snail: '소라·우렁이', porgy: '도미', salmon: '맥스연어', pumpkin: '호박',
+    carrot: '당근', radish: '순무', honey: '원기벌의 벌꿀', sugar: '사탕수수', butter: '염소 버터',
+    milk: '신선 우유', egg: '새의 알', cheese: '하테노 치즈', wheat: '타반타 밀', rice: '하이랄 쌀',
+    salt: '암염', spice: '고론의 향신료', extract: '몬스터엑기스', banana: '칼날바나나', apple: '사과',
+    tomato: '하이랄토마토', oil: '기름병', dark: '어둠 덩어리',
   };
   const tagKo = (t) => TAG_KO[t] || (BY_ID[t] && BY_ID[t].ko) || t;
 
