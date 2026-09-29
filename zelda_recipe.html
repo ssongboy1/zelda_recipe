@@ -1,0 +1,1373 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>하이랄 요리 시뮬레이터</title>
+  <meta name="description" content="젤다의 전설 야생의 숨결 / 왕국의 눈물 요리 결과를 미리 확인하는 시뮬레이터">
+  <style>
+:root {
+  --bg: #f4efe3;
+  --bg-2: #ebe3d0;
+  --card: #fffdf7;
+  --line: #d9ceb4;
+  --text: #2b2618;
+  --muted: #7a6f57;
+  --accent: #1f8a9e;
+  --accent-2: #c79a2b;
+  --accent-soft: #d8eef2;
+  --heart: #e0413b;
+  --heart-empty: #d6cdb8;
+  --yellow-heart: #e8b923;
+  --danger: #b94a2c;
+  --shadow: 0 2px 10px rgba(60, 45, 10, 0.08);
+  --radius: 14px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1a1d;
+    --bg-2: #13242a;
+    --card: #172a30;
+    --line: #28434b;
+    --text: #e9f1ee;
+    --muted: #8fa7a6;
+    --accent: #4fd1e8;
+    --accent-2: #e6c060;
+    --accent-soft: #1d3d45;
+    --heart: #ff5a52;
+    --heart-empty: #37504f;
+    --yellow-heart: #ffd23f;
+    --danger: #ff8a65;
+    --shadow: 0 2px 14px rgba(0, 0, 0, 0.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1a1d;
+  --bg-2: #13242a;
+  --card: #172a30;
+  --line: #28434b;
+  --text: #e9f1ee;
+  --muted: #8fa7a6;
+  --accent: #4fd1e8;
+  --accent-2: #e6c060;
+  --accent-soft: #1d3d45;
+  --heart: #ff5a52;
+  --heart-empty: #37504f;
+  --yellow-heart: #ffd23f;
+  --danger: #ff8a65;
+  --shadow: 0 2px 14px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+input { font: inherit; color: inherit; }
+h1, h2, h3 { margin: 0; line-height: 1.25; }
+.muted { color: var(--muted); font-weight: 400; }
+
+/* ---------- header ---------- */
+.top {
+  display: flex; flex-wrap: wrap; gap: 12px 20px;
+  align-items: center; justify-content: space-between;
+  padding: 20px 16px 12px; max-width: 1200px; margin: 0 auto;
+}
+.brand { display: flex; gap: 12px; align-items: center; }
+.brand-icon { font-size: 34px; }
+.brand h1 { font-size: 22px; letter-spacing: -0.02em; }
+.sub { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+
+.game-switch {
+  display: inline-flex; background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: 999px; padding: 4px;
+}
+.game-switch button {
+  border: 0; background: transparent; padding: 8px 16px; border-radius: 999px;
+  font-weight: 600; font-size: 14px; color: var(--muted);
+}
+.game-switch button[aria-checked="true"] {
+  background: var(--accent); color: #fff; box-shadow: var(--shadow);
+}
+:root[data-theme="dark"] .game-switch button[aria-checked="true"] { color: #062026; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .game-switch button[aria-checked="true"] { color: #062026; }
+}
+
+.tabs {
+  display: flex; gap: 4px; max-width: 1200px; margin: 0 auto; padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+.tabs button {
+  border: 0; background: none; padding: 10px 14px; font-weight: 600; color: var(--muted);
+  border-bottom: 3px solid transparent; margin-bottom: -1px;
+}
+.tabs button.active { color: var(--text); border-bottom-color: var(--accent-2); }
+
+main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 16px;
+}
+
+.cook-layout {
+  display: grid; gap: 16px;
+  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  align-items: start;
+}
+.left { display: grid; gap: 16px; position: sticky; top: 12px; }
+@media (max-width: 860px) {
+  .cook-layout { grid-template-columns: minmax(0, 1fr); }
+  .left { position: static; }
+}
+
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+.card-head h2 { font-size: 17px; }
+.actions { display: flex; gap: 6px; }
+.ghost {
+  border: 1px solid var(--line); background: transparent; border-radius: 8px;
+  padding: 5px 10px; font-size: 13px;
+}
+.ghost:hover { background: var(--bg-2); }
+.hint { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
+
+/* ---------- pot ---------- */
+.pot { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.slot {
+  aspect-ratio: 1; border: 2px dashed var(--line); border-radius: 12px;
+  display: grid; place-items: center; background: var(--bg-2); position: relative;
+  padding: 4px; min-width: 0;
+}
+.slot.filled { border-style: solid; border-color: var(--accent); background: var(--accent-soft); }
+.slot.filled:hover::after {
+  content: "✕"; position: absolute; top: 2px; right: 6px; font-size: 12px; color: var(--danger);
+}
+.slot .thumb { width: 100%; height: 100%; }
+.slot-empty { color: var(--muted); font-size: 20px; opacity: 0.5; }
+
+/* ---------- images ---------- */
+.thumb {
+  display: grid; place-items: center; width: 56px; height: 56px; position: relative;
+}
+.thumb img { width: 100%; height: 100%; object-fit: contain; }
+.thumb .emoji { font-size: 28px; line-height: 1; }
+.thumb.big { width: 104px; height: 104px; }
+.thumb.big .emoji { font-size: 60px; }
+.thumb.sm { width: 40px; height: 40px; }
+.thumb.sm .emoji { font-size: 22px; }
+
+/* ---------- result ---------- */
+.result-card { min-height: 180px; }
+.result-empty { color: var(--muted); text-align: center; padding: 36px 8px; }
+.result-main { display: flex; gap: 16px; align-items: center; }
+.result-plate {
+  flex: none; border-radius: 50%; padding: 10px;
+  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 70%);
+}
+.result-name { font-size: 20px; font-weight: 700; }
+.result-en { color: var(--muted); font-size: 13px; }
+.kind-tag {
+  display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+  background: var(--bg-2); color: var(--muted); margin-bottom: 4px;
+}
+.kind-tag.elixir { background: var(--accent-soft); color: var(--accent); }
+.kind-tag.bad { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
+
+.stats { margin-top: 14px; display: grid; gap: 8px; }
+.stat { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
+.stat-label { flex: none; width: 64px; color: var(--muted); font-size: 13px; padding-top: 2px; }
+.hearts { display: flex; flex-wrap: wrap; gap: 1px; }
+.heart { position: relative; width: 18px; height: 18px; font-size: 18px; line-height: 18px; }
+.heart::before { content: "♥"; color: var(--heart-empty); position: absolute; inset: 0; }
+.heart > i {
+  position: absolute; inset: 0; overflow: hidden; font-style: normal; color: var(--heart);
+}
+.heart > i::before { content: "♥"; }
+.heart.yellow > i { color: var(--yellow-heart); }
+.stars { color: var(--accent-2); letter-spacing: 1px; }
+.notes { margin: 12px 0 0; padding: 10px 12px; background: var(--bg-2); border-radius: 10px; font-size: 13px; }
+.notes p { margin: 0; }
+.notes p + p { margin-top: 4px; }
+
+/* ---------- picker ---------- */
+.picker-head { margin-bottom: 10px; }
+input[type="search"] {
+  width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--bg-2); outline: none;
+}
+input[type="search"]:focus { border-color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.chip {
+  border: 1px solid var(--line); background: transparent; border-radius: 999px;
+  padding: 4px 11px; font-size: 13px;
+}
+.chip.active { background: var(--text); color: var(--card); border-color: var(--text); }
+
+.grid {
+  display: grid; gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+}
+.tile {
+  border: 1px solid var(--line); background: var(--card); border-radius: 12px;
+  padding: 8px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  position: relative; min-width: 0; transition: transform .08s, border-color .1s;
+}
+.tile:hover { border-color: var(--accent); transform: translateY(-1px); }
+.tile:active { transform: scale(0.97); }
+.tile:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.tile-name {
+  font-size: 12px; text-align: center; line-height: 1.25; word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.tile-eff { position: absolute; top: 4px; left: 6px; font-size: 12px; }
+.tile-count {
+  position: absolute; top: 4px; right: 4px; background: var(--accent); color: #fff;
+  font-size: 11px; font-weight: 700; border-radius: 999px; min-width: 18px; height: 18px;
+  display: grid; place-items: center; padding: 0 5px;
+}
+.empty-grid { color: var(--muted); padding: 24px; text-align: center; grid-column: 1 / -1; }
+
+/* ---------- recipe book ---------- */
+.book { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+@media (max-width: 420px) { .book { grid-template-columns: minmax(0, 1fr); } }
+.recipe {
+  display: flex; gap: 12px; align-items: center; padding: 10px; border: 1px solid var(--line);
+  border-radius: 12px; min-width: 0;
+}
+.recipe-body { flex: 1; min-width: 0; }
+.recipe-name { font-weight: 700; font-size: 15px; }
+.recipe-en { color: var(--muted); font-size: 12px; }
+.recipe-req { font-size: 12px; margin-top: 4px; color: var(--text); }
+.recipe-req .plus { color: var(--muted); margin: 0 3px; }
+.recipe .ghost { flex: none; }
+.badge-new {
+  font-size: 10px; font-weight: 700; color: var(--accent-2); border: 1px solid var(--accent-2);
+  border-radius: 6px; padding: 0 4px; margin-left: 4px; vertical-align: 2px;
+}
+
+footer {
+  max-width: 1200px; margin: 8px auto 32px; padding: 0 16px; color: var(--muted); font-size: 12px;
+}
+footer p { margin: 4px 0; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+  background: var(--text); color: var(--card); padding: 8px 16px; border-radius: 999px;
+  font-size: 14px; opacity: 0; pointer-events: none; transition: all .2s;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="brand-icon" aria-hidden="true">🍳</span>
+      <div>
+        <h1>하이랄 요리 시뮬레이터</h1>
+        <p class="sub">재료를 골라 냄비에 넣으면 어떤 요리가 나오는지 알려드려요</p>
+      </div>
+    </div>
+    <div class="game-switch" role="radiogroup" aria-label="게임 선택">
+      <button type="button" role="radio" data-game="botw">야생의 숨결</button>
+      <button type="button" role="radio" data-game="totk">왕국의 눈물</button>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button type="button" role="tab" data-tab="cook" class="active">요리하기</button>
+    <button type="button" role="tab" data-tab="book">레시피 도감</button>
+  </nav>
+
+  <main>
+    <section id="tab-cook" class="tab-panel active">
+      <div class="cook-layout">
+        <div class="left">
+          <div class="card pot-card">
+            <div class="card-head">
+              <h2>냄비 <span id="pot-count" class="muted">0 / 5</span></h2>
+              <div class="actions">
+                <button type="button" id="btn-share" class="ghost">링크 복사</button>
+                <button type="button" id="btn-clear" class="ghost">비우기</button>
+              </div>
+            </div>
+            <div id="pot" class="pot"></div>
+            <p class="hint">재료를 누르면 냄비에 들어가고, 냄비 안의 재료를 누르면 빠져요.</p>
+          </div>
+
+          <div class="card result-card" id="result" aria-live="polite"></div>
+        </div>
+
+        <div class="card picker">
+          <div class="picker-head">
+            <input id="search" type="search" placeholder="재료 검색 (한글/영어)" autocomplete="off">
+          </div>
+          <div id="cats" class="chips"></div>
+          <div id="grid" class="grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-book" class="tab-panel">
+      <div class="card">
+        <div class="picker-head">
+          <input id="book-search" type="search" placeholder="요리 이름 검색" autocomplete="off">
+        </div>
+        <div id="book" class="book"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>재료·요리 이름과 레시피, 지속시간은 나무위키 문서를 기준으로 했어요. 재료별 효과 포인트(효과 단계)는 공개된 값이 적어 근사치이고, 대성공(랜덤 보너스)은 반영하지 않습니다.</p>
+    <p>이미지 출처: Zelda Wiki · Zelda Dungeon Wiki · Zelda Fandom. 게임 이미지와 명칭의 저작권은 Nintendo에 있습니다. 비공식 팬 제작 도구입니다.</p>
+  </footer>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script>
+// 젤다의 전설 야생의 숨결(BotW) / 왕국의 눈물(TotK) 요리 데이터
+// 주요 출처: 나무위키 「젤다의 전설 브레스 오브 더 와일드/아이템」, 「젤다의 전설 티어스 오브 더 킹덤/아이템/요리」
+//
+// hp: 날것 기준 회복량(1/4 하트 단위). 냄비 요리는 2배가 된다.
+// eff: 효과 종류, pot: 효과 포인트
+// time: 효과 지속시간에 더해지는 초 (0이면 효과 재료는 효과 기본값, 일반 재료는 30초)
+// g: 등장 게임 (생략 시 두 게임 모두)
+(function (root) {
+  const B = ['botw'];
+  const T = ['totk'];
+
+  // ---------------------------------------------------------------- 효과
+  // prefix: 요리 이름 앞에 붙는 수식어, lv: 단계 기준 포인트 (나무위키: 30 이상 Lv2, 45 이상 Lv3)
+  const EFFECTS = {
+    hearty:     { prefix: '맥스',     ko: '체력 완전 회복 + 추가 하트',       en: 'Hearty',     icon: '💛' },
+    energizing: { prefix: '원기',     ko: '스태미나 회복',                   en: 'Energizing', icon: '🟢' },
+    enduring:   { prefix: '스태미나', ko: '스태미나 완전 회복 + 추가 스태미나', en: 'Enduring',   icon: '🟡' },
+    attack:     { prefix: '파워',     ko: '공격력 업',   en: 'Mighty',    icon: '⚔️', time: 50,  lv: [30, 45] },
+    defense:    { prefix: '튼튼',     ko: '방어 업',     en: 'Tough',     icon: '🛡️', time: 50,  lv: [30, 45] },
+    speed:      { prefix: '고고',     ko: '이동력 업',   en: 'Hasty',     icon: '👟', time: 60,  lv: [30, 45] },
+    stealth:    { prefix: '은밀',     ko: '조용함 업',   en: 'Sneaky',    icon: '🌙', time: 120, lv: [30, 45] },
+    cold:       { prefix: '화끈',     ko: '추위 가드',   en: 'Spicy',     icon: '🔥', time: 150, lv: [30] },
+    heat:       { prefix: '썰렁',     ko: '더위 가드',   en: 'Chilly',    icon: '❄️', time: 150, lv: [30] },
+    shock:      { prefix: '일렉트로', ko: '전기 가드',   en: 'Electro',   icon: '⚡', time: 150, lv: [30, 45] },
+    fire:       { prefix: '방염',     ko: '불꽃 가드',   en: 'Fireproof', icon: '🧯', time: 150, lv: [30] },
+    bright:     { prefix: '등불',     ko: '발광',       en: 'Bright',    icon: '💡', time: 120, lv: [30, 45], g: T },
+    sticky:     { prefix: '논슬립',   ko: '미끄럼 경감', en: 'Sticky',    icon: '🦎', time: 120, lv: [30, 45], g: T },
+    swim:       { prefix: '스위밍',   ko: '헤엄 스피드 업', en: 'Rapid',  icon: '🌊', time: 30, lv: [], fixedLevel: 1, g: T },
+    scorching:  { prefix: '이글이글', ko: '고온 시 화염 공격', en: 'Scorching', icon: '🌋', time: 30, lv: [], fixedLevel: 1, g: T },
+    biting:     { prefix: '깡깡',     ko: '저온 시 냉기 공격', en: 'Biting', icon: '🧊', time: 30, lv: [], fixedLevel: 1, g: T },
+    stormy:     { prefix: '우르릉',   ko: '뇌우 시 전기 공격', en: 'Stormy', icon: '🌩️', time: 30, lv: [], fixedLevel: 1, g: T },
+    gloomguard: { prefix: '항독',     ko: '독기 가드',   en: 'Gloom-Resistant', icon: '🟣', time: 120, lv: [30, 45], g: T },
+    sunny:      { prefix: '정화',     ko: '독기 침식 체력 복구', en: 'Sunny', icon: '☀️', g: T },
+  };
+
+  // ---------------------------------------------------------------- 재료
+  // [id, 영어명(위키 표기), 한국어명(한글판), 분류, hp, 효과, 포인트, 시간, 게임, 추가태그]
+  const RAW = [
+    // 과일
+    ['apple', 'Apple', '사과', 'fruit', 2],
+    ['golden_apple', 'Golden Apple', '황금 사과', 'fruit', 8, null, 0, 0, T, ['crit']],
+    ['wildberry', 'Wildberry', '딸기', 'fruit', 2],
+    ['palm_fruit', 'Palm Fruit', '야자열매', 'fruit', 4],
+    ['hylian_tomato', 'Hylian Tomato', '하이랄토마토', 'fruit', 4, null, 0, 0, T, ['tomato']],
+    ['dazzlefruit', 'Dazzlefruit', '광휘의 열매', 'fruit', 2, null, 0, 0, T],
+    ['hydromelon', 'Hydromelon', '썰렁멜론', 'fruit', 4, 'heat', 7],
+    ['voltfruit', 'Voltfruit', '찌릿찌릿프루트', 'fruit', 2, 'shock', 7],
+    ['spicy_pepper', 'Spicy Pepper', '따끈따끈초 열매', 'fruit', 2, 'cold', 7],
+    ['mighty_bananas', 'Mighty Bananas', '칼날바나나', 'fruit', 2, 'attack', 14, 0, null, ['banana']],
+    ['fleet_lotus_seeds', 'Fleet-Lotus Seeds', '고고연꽃 열매', 'fruit', 2, 'speed', 14],
+    ['hearty_durian', 'Hearty Durian', '맥스두리안', 'fruit', 12, 'hearty', 4],
+    ['fire_fruit', 'Fire Fruit', '화염의 열매', 'fruit', 0, 'scorching', 1, 0, T],
+    ['ice_fruit', 'Ice Fruit', '냉기의 열매', 'fruit', 0, 'biting', 1, 0, T],
+    ['shock_fruit', 'Shock Fruit', '전기 열매', 'fruit', 0, 'stormy', 1, 0, T],
+    ['splash_fruit', 'Splash Fruit', '물 열매', 'fruit', 0, 'swim', 1, 0, T],
+
+    // 버섯
+    ['hylian_shroom', 'Hylian Shroom', '하이랄버섯', 'mushroom', 2],
+    ['skyshroom', 'Skyshroom', '하늘버섯', 'mushroom', 2, null, 0, 0, T],
+    ['hearty_truffle', 'Hearty Truffle', '맥스트러플', 'mushroom', 8, 'hearty', 1],
+    ['big_hearty_truffle', 'Big Hearty Truffle', '큰맥스트러플', 'mushroom', 12, 'hearty', 4],
+    ['endura_shroom', 'Endura Shroom', '활력버섯', 'mushroom', 4, 'enduring', 1],
+    ['stamella_shroom', 'Stamella Shroom', '원기버섯', 'mushroom', 4, 'energizing', 1],
+    ['chillshroom', 'Chillshroom', '썰렁버섯', 'mushroom', 2, 'heat', 7],
+    ['sunshroom', 'Sunshroom', '따끈따끈버섯', 'mushroom', 2, 'cold', 7],
+    ['zapshroom', 'Zapshroom', '찌릿찌릿버섯', 'mushroom', 2, 'shock', 7],
+    ['rushroom', 'Rushroom', '고고버섯', 'mushroom', 2, 'speed', 7],
+    ['razorshroom', 'Razorshroom', '칼날버섯', 'mushroom', 2, 'attack', 7],
+    ['ironshroom', 'Ironshroom', '갑옷버섯', 'mushroom', 2, 'defense', 7],
+    ['silent_shroom', 'Silent Shroom', '은밀버섯', 'mushroom', 2, 'stealth', 7],
+    ['brightcap', 'Brightcap', '조명버섯', 'mushroom', 2, 'bright', 7, 0, T],
+
+    // 채소
+    ['swift_carrot', 'Swift Carrot', '고고당근', 'veg', 2, 'speed', 7, 60, null, ['carrot']],
+    ['endura_carrot', 'Endura Carrot', '활력당근', 'veg', 8, 'enduring', 4, 0, null, ['carrot']],
+    ['fortified_pumpkin', 'Fortified Pumpkin', '갑옷호박', 'veg', 2, 'defense', 7, 50, null, ['pumpkin']],
+    ['sun_pumpkin', 'Sun Pumpkin', '해품이호박', 'veg', 2, 'sunny', 1, 0, T, ['pumpkin']],
+    ['stambulb', 'Stambulb', '원기초', 'veg', 4, 'energizing', 1, 0, T],
+    ['hearty_radish', 'Hearty Radish', '맥스순무', 'veg', 10, 'hearty', 3, 0, null, ['radish']],
+    ['big_hearty_radish', 'Big Hearty Radish', '큰맥스순무', 'veg', 16, 'hearty', 5, 0, null, ['radish']],
+
+    // 약초 · 꽃
+    ['hyrule_herb', 'Hyrule Herb', '하이랄초', 'flower', 4],
+    ['korok_frond', 'Korok Frond', '코로그 잎새', 'flower', 0, null, 0, 0, T],
+    ['cool_safflina', 'Cool Safflina', '썰렁허브', 'flower', 0, 'heat', 7],
+    ['warm_safflina', 'Warm Safflina', '따끈따끈허브', 'flower', 0, 'cold', 7],
+    ['electric_safflina', 'Electric Safflina', '찌릿찌릿허브', 'flower', 0, 'shock', 7],
+    ['swift_violet', 'Swift Violet', '고고제비꽃', 'flower', 0, 'speed', 14],
+    ['mighty_thistle', 'Mighty Thistle', '칼날초', 'flower', 0, 'attack', 7],
+    ['armoranth', 'Armoranth', '갑옷초', 'flower', 0, 'defense', 7],
+    ['blue_nightshade', 'Blue Nightshade', '은밀초', 'flower', 0, 'stealth', 7],
+    ['silent_princess', 'Silent Princess', '고요한 공주', 'flower', 0, 'stealth', 21, 60],
+    ['sundelion', 'Sundelion', '해품이꽃', 'flower', 0, 'sunny', 3, 0, T],
+
+    // 견과
+    ['acorn', 'Acorn', '도토리', 'nut', 1, null, 0, 50],
+    ['chickaloo_tree_nut', 'Chickaloo Tree Nut', '작은 새 나무 열매', 'nut', 2, null, 0, 40],
+
+    // 고기
+    ['raw_meat', 'Raw Meat', '짐승 고기', 'meat', 4],
+    ['raw_prime_meat', 'Raw Prime Meat', '상급 짐승 고기', 'meat', 6],
+    ['raw_gourmet_meat', 'Raw Gourmet Meat', '특급 짐승 고기', 'meat', 12],
+    ['raw_bird_drumstick', 'Raw Bird Drumstick', '새 고기', 'poultry', 4],
+    ['raw_bird_thigh', 'Raw Bird Thigh', '상급 새 고기', 'poultry', 6],
+    ['raw_whole_bird', 'Raw Whole Bird', '특급 새 고기', 'poultry', 12],
+
+    // 생선
+    ['hyrule_bass', 'Hyrule Bass', '하이랄배스', 'fish', 4],
+    ['hearty_bass', 'Hearty Bass', '맥스배스', 'fish', 8, 'hearty', 2],
+    ['staminoka_bass', 'Staminoka Bass', '원기배스', 'fish', 4, 'energizing', 3],
+    ['hearty_salmon', 'Hearty Salmon', '맥스연어', 'fish', 16, 'hearty', 4, 0, null, ['salmon']],
+    ['chillfin_trout', 'Chillfin Trout', '썰렁송어', 'fish', 4, 'heat', 14],
+    ['sizzlefin_trout', 'Sizzlefin Trout', '따끈따끈송어', 'fish', 4, 'cold', 14],
+    ['voltfin_trout', 'Voltfin Trout', '찌릿찌릿송어', 'fish', 4, 'shock', 14],
+    ['stealthfin_trout', 'Stealthfin Trout', '은밀송어', 'fish', 4, 'stealth', 14],
+    ['mighty_carp', 'Mighty Carp', '칼날잉어', 'fish', 4, 'attack', 14],
+    ['armored_carp', 'Armored Carp', '갑옷잉어', 'fish', 4, 'defense', 14],
+    ['sanke_carp', 'Sanke Carp', '달록잉어', 'fish', 4],
+    ['mighty_porgy', 'Mighty Porgy', '칼날도미', 'fish', 4, 'attack', 21, 0, null, ['porgy']],
+    ['armored_porgy', 'Armored Porgy', '갑옷도미', 'fish', 2, 'defense', 21, 0, null, ['porgy']],
+    ['glowing_cave_fish', 'Glowing Cave Fish', '조명동굴어', 'fish', 4, 'bright', 14, 0, T],
+    ['ancient_arowana', 'Ancient Arowana', '고대아로와나', 'fish', 4, null, 0, 0, T],
+
+    // 게 · 조개 (나무위키 분류상 어류지만 일부 레시피에서 구분)
+    ['razorclaw_crab', 'Razorclaw Crab', '칼날게', 'seafood', 4, 'attack', 14, 0, null, ['crab']],
+    ['ironshell_crab', 'Ironshell Crab', '갑옷게', 'seafood', 4, 'defense', 14, 0, null, ['crab']],
+    ['bright_eyed_crab', 'Bright-Eyed Crab', '원기게', 'seafood', 4, 'energizing', 2, 0, null, ['crab']],
+    ['hearty_blueshell_snail', 'Hearty Blueshell Snail', '맥스소라', 'seafood', 4, 'hearty', 3, 0, B, ['snail']],
+    ['sneaky_river_snail', 'Sneaky River Snail', '은밀우렁이', 'seafood', 4, 'stealth', 14, 0, null, ['snail']],
+
+    // 농 · 축산물 · 조미료
+    ['courser_bee_honey', 'Courser Bee Honey', '원기벌의 벌꿀', 'other', 8, 'energizing', 2, 0, null, ['honey']],
+    ['hylian_rice', 'Hylian Rice', '하이랄 쌀', 'other', 4, null, 0, 60, null, ['rice']],
+    ['bird_egg', 'Bird Egg', '새의 알', 'other', 4, null, 0, 0, null, ['egg']],
+    ['tabantha_wheat', 'Tabantha Wheat', '타반타 밀', 'other', 4, null, 0, 0, null, ['wheat']],
+    ['fresh_milk', 'Fresh Milk', '신선 우유', 'other', 2, null, 0, 0, null, ['milk']],
+    ['cane_sugar', 'Cane Sugar', '사탕수수', 'other', 0, null, 0, 80, null, ['sugar']],
+    ['goat_butter', 'Goat Butter', '염소 버터', 'other', 0, null, 0, 80, null, ['butter']],
+    ['hateno_cheese', 'Hateno Cheese', '하테노 치즈', 'other', 4, null, 0, 0, T, ['cheese']],
+    ['oil_jar', 'Oil Jar', '기름병', 'other', 0, null, 0, 0, T, ['oil']],
+    ['rock_salt', 'Rock Salt', '암염', 'other', 0, null, 0, 0, null, ['salt']],
+    ['goron_spice', 'Goron Spice', '고론의 향신료', 'other', 0, null, 0, 0, null, ['spice']],
+    ['monster_extract', 'Monster Extract', '몬스터엑기스', 'other', 0, null, 0, 0, null, ['extract']],
+    ['dark_clump', 'Dark Clump', '어둠 덩어리', 'other', 0, 'gloomguard', 14, 0, T, ['dark']],
+
+    // 특수
+    ['fairy', 'Fairy', '요정', 'special', 0, null, 0, 30, null, ['fairy', 'neutral']],
+    ['star_fragment', 'Star Fragment', '별의 조각', 'special', 0, null, 0, 30, null, ['neutral', 'crit']],
+    ['dinraal_scale', "Dinraal's Scale", '올드래곤의 비늘', 'dragon', 0, null, 0, 90, null, ['neutral', 'crit']],
+    ['dinraal_claw', "Dinraal's Claw", '올드래곤의 발톱', 'dragon', 0, null, 0, 210, null, ['neutral', 'crit']],
+    ['dinraal_fang', "Shard of Dinraal's Fang", '올드래곤의 이빨 조각', 'dragon', 0, null, 0, 630, null, ['neutral', 'crit']],
+    ['dinraal_horn', "Shard of Dinraal's Horn", '올드래곤의 뿔 조각', 'dragon', 0, null, 0, 1800, null, ['neutral', 'crit']],
+    ['naydra_scale', "Naydra's Scale", '넬드래곤의 비늘', 'dragon', 0, null, 0, 90, null, ['neutral', 'crit']],
+    ['naydra_claw', "Naydra's Claw", '넬드래곤의 발톱', 'dragon', 0, null, 0, 210, null, ['neutral', 'crit']],
+    ['naydra_fang', "Shard of Naydra's Fang", '넬드래곤의 이빨 조각', 'dragon', 0, null, 0, 630, null, ['neutral', 'crit']],
+    ['naydra_horn', "Shard of Naydra's Horn", '넬드래곤의 뿔 조각', 'dragon', 0, null, 0, 1800, null, ['neutral', 'crit']],
+    ['farosh_scale', "Farosh's Scale", '필로드래곤의 비늘', 'dragon', 0, null, 0, 90, null, ['neutral', 'crit']],
+    ['farosh_claw', "Farosh's Claw", '필로드래곤의 발톱', 'dragon', 0, null, 0, 210, null, ['neutral', 'crit']],
+    ['farosh_fang', "Shard of Farosh's Fang", '필로드래곤의 이빨 조각', 'dragon', 0, null, 0, 630, null, ['neutral', 'crit']],
+    ['farosh_horn', "Shard of Farosh's Horn", '필로드래곤의 뿔 조각', 'dragon', 0, null, 0, 1800, null, ['neutral', 'crit']],
+
+    // 벌레 · 도마뱀 (물약 재료)
+    ['hot_footed_frog', 'Hot-Footed Frog', '고고개구리', 'critter', 0, 'speed', 14],
+    ['hightail_lizard', 'Hightail Lizard', '고고도마뱀', 'critter', 0, 'speed', 21],
+    ['tireless_frog', 'Tireless Frog', '활력개구리', 'critter', 0, 'enduring', 4],
+    ['hearty_lizard', 'Hearty Lizard', '맥스도마뱀', 'critter', 0, 'hearty', 2],
+    ['restless_cricket', 'Restless Cricket', '원기메뚜기', 'critter', 0, 'energizing', 1],
+    ['energetic_rhino_beetle', 'Energetic Rhino Beetle', '원기장수풍뎅이', 'critter', 0, 'energizing', 4],
+    ['bladed_rhino_beetle', 'Bladed Rhino Beetle', '칼날장수풍뎅이', 'critter', 0, 'attack', 21],
+    ['rugged_rhino_beetle', 'Rugged Rhino Beetle', '갑옷장수풍뎅이', 'critter', 0, 'defense', 21],
+    ['winterwing_butterfly', 'Winterwing Butterfly', '썰렁호랑나비', 'critter', 0, 'heat', 14],
+    ['summerwing_butterfly', 'Summerwing Butterfly', '따끈따끈호랑나비', 'critter', 0, 'cold', 14],
+    ['thunderwing_butterfly', 'Thunderwing Butterfly', '찌릿찌릿호랑나비', 'critter', 0, 'shock', 14],
+    ['smotherwing_butterfly', 'Smotherwing Butterfly', '방염호랑나비', 'critter', 0, 'fire', 14],
+    ['cold_darner', 'Cold Darner', '썰렁왕잠자리', 'critter', 0, 'heat', 14],
+    ['warm_darner', 'Warm Darner', '따끈따끈왕잠자리', 'critter', 0, 'cold', 14],
+    ['electric_darner', 'Electric Darner', '찌릿찌릿왕잠자리', 'critter', 0, 'shock', 14],
+    ['fireproof_lizard', 'Fireproof Lizard', '방염도마뱀', 'critter', 0, 'fire', 21],
+    ['sunset_firefly', 'Sunset Firefly', '고요반딧불이', 'critter', 0, 'stealth', 14],
+    ['deep_firefly', 'Deep Firefly', '어둠반딧불이', 'critter', 0, 'bright', 14, 0, T],
+    ['sticky_frog', 'Sticky Frog', '접착개구리', 'critter', 0, 'sticky', 14, 0, T],
+    ['sticky_lizard', 'Sticky Lizard', '접착도마뱀', 'critter', 0, 'sticky', 21, 0, T],
+
+    // 몬스터 소재 (time = 지속시간 증가량, 나무위키: 뿔 70초 · 이빨 110초 · 간 190초)
+    ['bokoblin_horn', 'Bokoblin Horn', '보코블린의 뿔', 'monster', 0, null, 0, 70],
+    ['bokoblin_fang', 'Bokoblin Fang', '보코블린의 이빨', 'monster', 0, null, 0, 110],
+    ['bokoblin_guts', 'Bokoblin Guts', '보코블린의 간', 'monster', 0, null, 0, 190],
+    ['moblin_horn', 'Moblin Horn', '모리블린의 뿔', 'monster', 0, null, 0, 70],
+    ['moblin_fang', 'Moblin Fang', '모리블린의 이빨', 'monster', 0, null, 0, 110],
+    ['moblin_guts', 'Moblin Guts', '모리블린의 간', 'monster', 0, null, 0, 190],
+    ['lizalfos_horn', 'Lizalfos Horn', '리잘포스의 뿔', 'monster', 0, null, 0, 70],
+    ['lizalfos_talon', 'Lizalfos Talon', '리잘포스의 발톱', 'monster', 0, null, 0, 110],
+    ['lizalfos_tail', 'Lizalfos Tail', '리잘포스의 꼬리', 'monster', 0, null, 0, 190],
+    ['icy_lizalfos_tail', 'Icy Lizalfos Tail', '리잘포스의 푸른 꼬리', 'monster', 0, null, 0, 190, B],
+    ['red_lizalfos_tail', 'Red Lizalfos Tail', '리잘포스의 붉은 꼬리', 'monster', 0, null, 0, 190, B],
+    ['yellow_lizalfos_tail', 'Yellow Lizalfos Tail', '리잘포스의 노란 꼬리', 'monster', 0, null, 0, 190, B],
+    ['lynel_horn', 'Lynel Horn', '라이넬의 뿔', 'monster', 0, null, 0, 70, B],
+    ['lynel_hoof', 'Lynel Hoof', '라이넬의 발굽', 'monster', 0, null, 0, 110],
+    ['lynel_guts', 'Lynel Guts', '라이넬의 간', 'monster', 0, null, 0, 490],
+    ['chuchu_jelly', 'Chuchu Jelly', '츄츄젤리', 'monster', 0, null, 0, 70],
+    ['white_chuchu_jelly', 'White Chuchu Jelly', '하얀츄츄젤리', 'monster', 0, null, 0, 110],
+    ['red_chuchu_jelly', 'Red Chuchu Jelly', '빨간츄츄젤리', 'monster', 0, null, 0, 110],
+    ['yellow_chuchu_jelly', 'Yellow Chuchu Jelly', '노란츄츄젤리', 'monster', 0, null, 0, 110],
+    ['keese_wing', 'Keese Wing', '키이스의 날개', 'monster', 0, null, 0, 70],
+    ['ice_keese_wing', 'Ice Keese Wing', '아이스 키이스의 날개', 'monster', 0, null, 0, 110, B],
+    ['fire_keese_wing', 'Fire Keese Wing', '파이어 키이스의 날개', 'monster', 0, null, 0, 110, B],
+    ['electric_keese_wing', 'Electric Keese Wing', '일렉트로 키이스의 날개', 'monster', 0, null, 0, 110, B],
+    ['keese_eyeball', 'Keese Eyeball', '키이스의 눈알', 'monster', 0, null, 0, 190],
+    ['octorok_tentacle', 'Octorok Tentacle', '옥타의 다리', 'monster', 0, null, 0, 70],
+    ['octorok_eyeball', 'Octorok Eyeball', '옥타의 눈알', 'monster', 0, null, 0, 110],
+    ['octo_balloon', 'Octo Balloon', '옥타 풍선', 'monster', 0, null, 0, 70],
+    ['molduga_fin', 'Molduga Fin', '몰드래고의 등지느러미', 'monster', 0, null, 0, 110],
+    ['molduga_guts', 'Molduga Guts', '몰드래고의 간', 'monster', 0, null, 0, 190],
+    ['hinox_toenail', 'Hinox Toenail', '히녹스의 발톱', 'monster', 0, null, 0, 70],
+    ['hinox_tooth', 'Hinox Tooth', '히녹스의 이빨', 'monster', 0, null, 0, 110],
+    ['hinox_guts', 'Hinox Guts', '히녹스의 간', 'monster', 0, null, 0, 190],
+    ['ancient_screw', 'Ancient Screw', '고대의 나사', 'monster', 0, null, 0, 70, B],
+    ['ancient_spring', 'Ancient Spring', '고대의 스프링', 'monster', 0, null, 0, 70, B],
+    ['ancient_gear', 'Ancient Gear', '고대의 톱니', 'monster', 0, null, 0, 110, B],
+    ['ancient_shaft', 'Ancient Shaft', '고대의 샤프트', 'monster', 0, null, 0, 110, B],
+    ['ancient_core', 'Ancient Core', '고대의 코어', 'monster', 0, null, 0, 190, B],
+    ['giant_ancient_core', 'Giant Ancient Core', '고대의 거대한 코어', 'monster', 0, null, 0, 190, B],
+    ['gibdo_wing', 'Gibdo Wing', '기브도의 날개', 'monster', 0, null, 0, 70, T],
+    ['gibdo_bone', 'Gibdo Bone', '기브도의 뼈', 'monster', 0, null, 0, 110, T],
+    ['gibdo_guts', 'Gibdo Guts', '기브도의 간', 'monster', 0, null, 0, 190, T, ['crit']],
+    ['aerocuda_wing', 'Aerocuda Wing', '에어로쿠다의 날개', 'monster', 0, null, 0, 70, T],
+    ['aerocuda_eyeball', 'Aerocuda Eyeball', '에어로쿠다의 눈알', 'monster', 0, null, 0, 110, T],
+    ['horriblin_horn', 'Horriblin Horn', '호리블린의 뿔', 'monster', 0, null, 0, 70, T],
+    ['horriblin_claw', 'Horriblin Claw', '호리블린의 발톱', 'monster', 0, null, 0, 110, T],
+    ['horriblin_guts', 'Horriblin Guts', '호리블린의 간', 'monster', 0, null, 0, 190, T],
+    ['like_like_stone', 'Like Like Stone', '라이크라이크의 돌', 'monster', 0, null, 0, 110, T],
+    ['frox_fingernail', 'Frox Fingernail', '프록스의 손톱', 'monster', 0, null, 0, 110, T],
+    ['frox_fang', 'Frox Fang', '프록스의 이빨', 'monster', 0, null, 0, 110, T],
+    ['frox_guts', 'Frox Guts', '프록스의 간', 'monster', 0, null, 0, 190, T],
+
+    // 광물 · 기타 (넣으면 너무 딱딱한 요리)
+    ['flint', 'Flint', '부싯돌', 'mineral', 0],
+    ['amber', 'Amber', '호박', 'mineral', 0],
+    ['opal', 'Opal', '오팔', 'mineral', 0],
+    ['luminous_stone', 'Luminous Stone', '야광석', 'mineral', 0],
+    ['topaz', 'Topaz', '토파즈', 'mineral', 0],
+    ['ruby', 'Ruby', '루비', 'mineral', 0],
+    ['sapphire', 'Sapphire', '사파이어', 'mineral', 0],
+    ['diamond', 'Diamond', '다이아몬드', 'mineral', 0],
+    ['wood', 'Wood', '장작 묶음', 'mineral', 0],
+  ];
+
+  const CATEGORY_TAGS = {
+    veg: ['greens'], flower: ['greens'],
+    meat: ['meatany'], poultry: ['meatany'],
+    fish: ['seafoodany'], seafood: ['seafoodany'],
+  };
+
+  const INGREDIENTS = RAW.map(([id, en, ko, cat, hp, eff, pot, time, g, tags]) => ({
+    id, en, ko, cat,
+    hp: hp || 0,
+    eff: eff || null,
+    pot: pot || 0,
+    time: time || 0,
+    g: g || ['botw', 'totk'],
+    tags: [id, cat, ...(CATEGORY_TAGS[cat] || []), ...(tags || [])],
+  }));
+
+  const CATEGORIES = [
+    { id: 'all', ko: '전체' },
+    { id: 'fruit', ko: '과일' },
+    { id: 'mushroom', ko: '버섯' },
+    { id: 'veg', ko: '채소' },
+    { id: 'flower', ko: '약초·꽃' },
+    { id: 'nut', ko: '견과' },
+    { id: 'meat', ko: '육류', also: ['poultry'] },
+    { id: 'fish', ko: '어패류', also: ['seafood'] },
+    { id: 'other', ko: '농축산물·조미료' },
+    { id: 'critter', ko: '벌레류' },
+    { id: 'monster', ko: '몬스터 부위' },
+    { id: 'special', ko: '용·요정·별', also: ['dragon'] },
+    { id: 'mineral', ko: '광석' },
+  ];
+
+  // ---------------------------------------------------------------- 레시피
+  // req: 필요한 재료 슬롯 목록. 각 슬롯은 태그 하나 또는 태그 배열(그중 하나).
+  //      각 슬롯은 서로 다른 재료로 채워야 한다. 기본 재료만 갖추면 다른 재료를 더 넣어도 된다.
+  // only: 이 태그에 속하는 재료로만 만들어야 하는 경우.
+  // distinct: 서로 다른 재료 종류가 최소 몇 개 필요한지.
+  // pri: 우선순위(기본값 = 슬롯 개수). 여러 레시피가 맞으면 높은 쪽이 선택된다.
+  const R = (en, ko, req, opt = {}) => ({ en, ko, req, ...opt });
+  const SEA = 'seafoodany';                       // 어패류 전체
+  const MEAT_PRIME = ['raw_prime_meat', 'raw_bird_thigh'];
+  const MEAT_GOURMET = ['raw_gourmet_meat', 'raw_whole_bird'];
+
+  const RECIPES = [
+    // 꼬치구이 · 볶음
+    R('Mushroom Skewer', '버섯 꼬치구이', ['mushroom'], { only: ['mushroom'], pri: 1 }),
+    R('Copious Mushroom Skewers', '버섯구이 곱빼기', ['mushroom'], { only: ['mushroom'], distinct: 4, pri: 4 }),
+    R('Meat Skewer', '고기 꼬치구이', ['meatany'], { only: ['meatany'], pri: 1 }),
+    R('Copious Meat Skewers', '고기 꼬치구이 곱빼기', ['meatany'], { only: ['meatany'], distinct: 4, pri: 4 }),
+    R('Fish Skewer', '생선 꼬치구이', ['fish'], { only: [SEA], pri: 1 }),
+    R('Seafood Skewer', '해산물 꼬치구이', ['seafood'], { only: ['seafood'], pri: 1.1 }),
+    R('Copious Seafood Skewers', '생선 꼬치구이 곱빼기', [SEA], { only: [SEA], distinct: 4, pri: 4 }),
+    R('Simmered Fruit', '과일전골', ['fruit'], { only: ['fruit'], pri: 1 }),
+    R('Copious Simmered Fruit', '과일전골 곱빼기', ['fruit'], { only: ['fruit'], distinct: 4, pri: 4 }),
+    R('Fried Wild Greens', '야채구이', ['greens'], { only: ['greens'], pri: 1 }),
+    R('Copious Fried Wild Greens', '야채구이 곱빼기', ['greens'], { only: ['greens'], distinct: 4, pri: 4 }),
+    R('Sautéed Nuts', '너츠볶음', ['nut'], { only: ['nut'], pri: 1 }),
+    R('Spicy Sautéed Peppers', '따끈따끈볶음', ['spicy_pepper'], { only: ['spicy_pepper'], pri: 1.5 }),
+    R('Meat and Mushroom Skewer', '고기 꼬치구이와 버섯', ['meatany', 'mushroom'], { only: ['meatany', 'mushroom'] }),
+    R('Fish and Mushroom Skewer', '생선 꼬치구이와 버섯', [SEA, 'mushroom'], { only: [SEA, 'mushroom'] }),
+    R('Meat and Seafood Fry', '고기와 생선구이', ['meatany', SEA], { only: ['meatany', SEA] }),
+    R('Prime Meat and Seafood Fry', '상급 고기와 생선구이', [MEAT_PRIME, SEA], { only: ['meatany', SEA], pri: 2.5 }),
+    R('Gourmet Meat and Seafood Fry', '특급 고기와 생선구이', [MEAT_GOURMET, SEA], { only: ['meatany', SEA], pri: 2.6 }),
+    R('Fruit and Mushroom Mix', '과일 버섯무침', ['fruit', 'mushroom'], { only: ['fruit', 'mushroom'] }),
+    R('Steamed Fruit', '과일찜', ['fruit', 'greens'], { only: ['fruit', 'greens'] }),
+    R('Steamed Mushrooms', '버섯쌈구이', ['mushroom', 'greens'], { only: ['mushroom', 'greens'] }),
+    R('Steamed Meat', '고기쌈구이', ['meatany', 'greens'], { only: ['meatany', 'greens'] }),
+    R('Steamed Fish', '생선쌈구이', [SEA, 'greens'], { only: [SEA, 'greens'] }),
+    R('Pepper Steak', '스파이시 고기구이', ['meatany', 'spicy_pepper'], { pri: 2.3 }),
+    R('Pepper Seafood', '스파이시 생선구이', [SEA, 'spicy_pepper'], { pri: 2.3 }),
+    R('Meat-Stuffed Pumpkin', '고기를 넣은 호박', ['pumpkin', 'meatany'], { pri: 2.4 }),
+
+    // 암염
+    R('Salt-Grilled Greens', '야채 소금구이', ['salt', 'greens']),
+    R('Salt-Grilled Mushrooms', '버섯 소금구이', ['salt', 'mushroom']),
+    R('Salt-Grilled Fish', '생선 소금구이', ['salt', SEA]),
+    R('Salt-Grilled Crab', '게 소금구이', ['salt', 'crab'], { pri: 2.1 }),
+    R('Salt-Grilled Meat', '고기 소금구이', ['salt', 'meatany']),
+    R('Salt-Grilled Prime Meat', '상급 고기 소금구이', ['salt', MEAT_PRIME], { pri: 2.1 }),
+    R('Salt-Grilled Gourmet Meat', '특급 고기 소금구이', ['salt', MEAT_GOURMET], { pri: 2.2 }),
+
+    // 고론의 향신료
+    R('Spiced Meat Skewer', '짐승 스테이크', ['spice', 'raw_meat'], { pri: 2.1 }),
+    R('Prime Spiced Meat Skewer', '상급 짐승 스테이크', ['spice', 'raw_prime_meat'], { pri: 2.1 }),
+    R('Gourmet Spiced Meat Skewer', '특급 짐승 스테이크', ['spice', 'raw_gourmet_meat'], { pri: 2.1 }),
+    R('Herb Sauté', '향긋한 나물볶음', ['spice', 'greens']),
+    R('Fragrant Mushroom Sauté', '향긋한 버섯볶음', ['spice', 'mushroom']),
+    R('Crab Stir-Fry', '게 볶음', ['crab', 'spice'], { pri: 2.1 }),
+
+    // 벌꿀
+    R('Honey Candy', '벌꿀 사탕', ['honey'], { only: ['honey'], pri: 1.5 }),
+    R('Honeyed Apple', '꿀에 절인 사과', ['honey', 'apple'], { pri: 2.2 }),
+    R('Honeyed Fruits', '꿀에 절인 과일', ['honey', 'fruit']),
+    R('Glazed Veggies', '달게 조린 야채', ['honey', 'greens']),
+    R('Glazed Mushrooms', '달게 조린 버섯', ['honey', 'mushroom']),
+    R('Glazed Meat', '달게 조린 고기', ['honey', 'meatany']),
+    R('Glazed Seafood', '달게 조린 생선', ['honey', SEA]),
+
+    // 뫼니에르
+    R('Seafood Meunière', '생선 뫼니에르', ['wheat', 'butter', SEA]),
+    R('Porgy Meunière', '도미 뫼니에르', ['wheat', 'butter', 'porgy'], { pri: 3.1 }),
+    R('Salmon Meunière', '연어 뫼니에르', ['wheat', 'butter', 'salmon'], { pri: 3.1 }),
+
+    // 수프 · 스튜
+    R('Creamy Heart Soup', '하트 밀크수프', ['radish', 'hydromelon', 'voltfruit', 'milk'], { pri: 10 }),
+    R('Cream of Vegetable Soup', '야채 밀크수프', ['milk', 'salt', 'greens']),
+    R('Veggie Cream Soup', '야채 크림수프', ['milk', 'salt', ['carrot', 'pumpkin']], { pri: 3.1 }),
+    R('Creamy Seafood Soup', '생선 밀크수프', ['milk', 'salt', 'greens', SEA]),
+    R('Creamy Meat Soup', '고기 밀크수프', ['milk', 'salt', 'greens', 'meatany']),
+    R('Cream of Mushroom Soup', '버섯 밀크수프', ['milk', 'salt', 'greens', 'mushroom']),
+    R('Carrot Stew', '당근 스튜', ['milk', 'wheat', 'butter', 'carrot'], { pri: 4.2 }),
+    R('Pumpkin Stew', '호박 스튜', ['milk', 'wheat', 'butter', 'pumpkin'], { pri: 4.2 }),
+    R('Meat Stew', '고기 스튜', ['milk', 'wheat', 'butter', 'meatany'], { pri: 4.1 }),
+    R('Prime Meat Stew', '상급 고기 스튜', ['milk', 'wheat', 'butter', MEAT_PRIME], { pri: 4.3 }),
+    R('Gourmet Meat Stew', '특급 고기 스튜', ['milk', 'wheat', 'butter', MEAT_GOURMET], { pri: 4.4 }),
+    R('Clam Chowder', '조개 차우더', ['milk', 'wheat', 'butter', 'hearty_blueshell_snail'], { g: B, pri: 4.3 }),
+    R('Snail Chowder', '조개 차우더', ['milk', 'wheat', 'butter', 'sneaky_river_snail'], { g: T, pri: 4.3 }),
+
+    // 쌀
+    R('Curry Rice', '카레라이스', ['rice', 'spice'], { pri: 2.5 }),
+    R('Vegetable Curry', '야채 카레', ['rice', 'spice', ['carrot', 'pumpkin']], { pri: 3.1 }),
+    R('Seafood Curry', '해산물 카레', ['rice', 'spice', ['porgy', 'hearty_blueshell_snail']], { pri: 3.1 }),
+    R('Poultry Curry', '치킨 카레', ['rice', 'spice', 'raw_bird_drumstick'], { pri: 3.1 }),
+    R('Prime Poultry Curry', '상급 치킨 카레', ['rice', 'spice', 'raw_bird_thigh'], { pri: 3.1 }),
+    R('Gourmet Poultry Curry', '특급 치킨 카레', ['rice', 'spice', 'raw_whole_bird'], { pri: 3.1 }),
+    R('Meat Curry', '짐승 고기 카레', ['rice', 'spice', 'raw_meat'], { pri: 3.1 }),
+    R('Prime Meat Curry', '상급 고기 카레', ['rice', 'spice', 'raw_prime_meat'], { pri: 3.1 }),
+    R('Gourmet Meat Curry', '특급 고기 카레', ['rice', 'spice', 'raw_gourmet_meat'], { pri: 3.1 }),
+    R('Curry Pilaf', '카레 필래프', ['rice', 'egg', 'butter', 'spice']),
+    R('Poultry Pilaf', '치킨 필래프', ['rice', 'egg', 'butter', 'raw_bird_drumstick'], { pri: 4.1 }),
+    R('Prime Poultry Pilaf', '상급 치킨 필래프', ['rice', 'egg', 'butter', 'raw_bird_thigh'], { pri: 4.1 }),
+    R('Gourmet Poultry Pilaf', '특급 치킨 필래프', ['rice', 'egg', 'butter', 'raw_whole_bird'], { pri: 4.1 }),
+    R('Seafood Paella', '해물 파에야', ['rice', 'butter', 'salt', 'porgy', 'hearty_blueshell_snail'], { g: B }),
+    R('Seafood Paella', '해물 파에야', ['rice', 'butter', 'salt', 'porgy', 'crab'], { g: T }),
+    R('Vegetable Risotto', '야채 리조또', ['rice', 'butter', 'salt', ['carrot', 'pumpkin']], { pri: 4.1 }),
+    R('Mushroom Risotto', '버섯 리조또', ['rice', 'butter', 'salt', 'mushroom']),
+    R('Salmon Risotto', '연어 리조또', ['rice', 'butter', 'salt', 'salmon'], { pri: 4.1 }),
+    R('Crab Risotto', '게살 리조또', ['rice', 'butter', 'salt', 'crab'], { pri: 4.1 }),
+    R('Fried Egg and Rice', '달걀프라이라이스', ['rice', 'egg'], { pri: 2.4 }),
+    R('Seafood Fried Rice', '해물볶음밥', ['rice', 'salt', ['porgy', 'hearty_blueshell_snail']], { pri: 3.1 }),
+    R('Crab Omelet with Rice', '게살 달걀볶음밥', ['egg', 'salt', 'rice', 'crab'], { pri: 4.1 }),
+    R('Meat and Rice Bowl', '짐승 고기덮밥', ['rice', 'salt', 'raw_meat'], { pri: 3.1 }),
+    R('Prime Meat and Rice Bowl', '상급 짐승 고기덮밥', ['rice', 'salt', 'raw_prime_meat'], { pri: 3.1 }),
+    R('Gourmet Meat and Rice Bowl', '특급 짐승 고기덮밥', ['rice', 'salt', 'raw_gourmet_meat'], { pri: 3.1 }),
+    R('Veggie Rice Balls', '야채 주먹밥', ['rice', 'greens'], { pri: 2.4 }),
+    R('Mushroom Rice Balls', '버섯 주먹밥', ['rice', 'mushroom'], { pri: 2.4 }),
+    R('Meaty Rice Balls', '고기 주먹밥', ['rice', 'meatany'], { pri: 2.4 }),
+    R('Seafood Rice Balls', '해물 주먹밥', ['rice', SEA], { pri: 2.4 }),
+
+    // 달걀
+    R('Omelet', '오믈렛', ['egg'], { only: ['egg'], pri: 1.5 }),
+    R('Vegetable Omelet', '야채 오믈렛', ['egg', 'butter', 'salt', 'greens']),
+    R('Mushroom Omelet', '버섯 오믈렛', ['egg', 'butter', 'salt', 'mushroom']),
+
+    // 밀 · 디저트
+    R('Wheat Bread', '밀 빵', ['wheat', 'salt']),
+    R('Warm Milk', '핫밀크', ['milk'], { only: ['milk'], pri: 1.5 }),
+    R('Apple Pie', '애플파이', ['wheat', 'sugar', 'butter', 'apple'], { pri: 4.2 }),
+    R('Fruit Pie', '프루트 파이', ['wheat', 'sugar', 'butter', 'fruit'], { pri: 4.1 }),
+    R('Pumpkin Pie', '호박 케이크', ['wheat', 'sugar', 'butter', 'pumpkin'], { pri: 4.2 }),
+    R('Carrot Cake', '당근 케이크', ['wheat', 'sugar', 'butter', 'carrot'], { pri: 4.2 }),
+    R('Nutcake', '너츠 케이크', ['wheat', 'sugar', 'butter', 'nut'], { pri: 4.2 }),
+    R('Egg Tart', '에그 타르트', ['egg', 'wheat', 'sugar', 'butter'], { pri: 4.2 }),
+    R('Fish Pie', '피시 파이', ['wheat', 'salt', 'butter', SEA], { pri: 4.1 }),
+    R('Meat Pie', '미트 파이', ['wheat', 'salt', 'butter', 'meatany'], { pri: 4.1 }),
+    R('Fruitcake', '프루트케이크', ['wheat', 'sugar', ['apple', 'wildberry'], 'fruit'], { pri: 4.3 }),
+    R('Hot Buttered Apple', '버터 바른 사과', ['apple', 'butter'], { pri: 2.2 }),
+    R('Fried Bananas', '튀긴 바나나', ['banana', 'wheat', 'sugar']),
+    R('Egg Pudding', '달걀 푸딩', ['milk', 'egg', 'sugar']),
+    R('Plain Crepe', '플레인 크레이프', ['milk', 'egg', 'wheat', 'sugar']),
+    R('Honey Crepe', '벌꿀 크레이프', ['milk', 'egg', 'wheat', 'sugar', 'honey']),
+    R('Wildberry Crepe', '딸기 크레이프', ['milk', 'egg', 'wheat', 'sugar', 'wildberry']),
+
+    // 몬스터엑기스
+    R('Monster Stew', '몬스터전골', ['extract', 'meatany', SEA], { pri: 20 }),
+    R('Monster Soup', '몬스터수프', ['extract', 'milk', 'wheat', 'butter'], { pri: 21 }),
+    R('Monster Curry', '몬스터 카레', ['extract', 'rice', 'spice'], { pri: 20 }),
+    R('Monster Rice Balls', '몬스터 주먹밥', ['extract', 'rice', 'salt'], { pri: 20 }),
+    R('Monster Cake', '몬스터 케이크', ['extract', 'wheat', 'sugar', 'butter'], { pri: 21 }),
+
+    // 왕국의 눈물 신규 요리
+    R('Steamed Tomatoes', '야채 토마토찜', ['greens', 'tomato'], { g: T, only: ['greens', 'tomato'], pri: 2.1 }),
+    R('Cooked Stambulb', '통구이', ['stambulb'], { g: T, only: ['stambulb'], pri: 1.5 }),
+    R('Buttered Stambulb', '버터볶음', ['stambulb', 'butter'], { g: T, pri: 2.3 }),
+    R('Fragrant Seafood Stew', '오일 해산물전골', [SEA, 'stambulb', 'oil'], { g: T, pri: 3.3 }),
+    R('Deep-Fried Drumstick', '오일 새 고기 튀김', ['raw_bird_drumstick', 'oil'], { g: T, pri: 2.3 }),
+    R('Deep-Fried Thigh', '오일 상급 새 고기 튀김', ['raw_bird_thigh', 'oil'], { g: T, pri: 2.3 }),
+    R('Deep-Fried Bird Roast', '오일 특급 새 고기 튀김', ['raw_whole_bird', 'oil'], { g: T, pri: 2.3 }),
+    R('Simmered Tomato', '토마토전골', ['tomato'], { g: T, only: ['tomato'], pri: 1.5 }),
+    R('Fruity Tomato Stew', '토마토수프', ['tomato', 'milk', 'salt'], { g: T, pri: 3.2 }),
+    R('Tomato Mushroom Stew', '버섯 토마토전골', ['mushroom', 'tomato'], { g: T, pri: 2.3 }),
+    R('Tomato Seafood Soup', '해산물 토마토수프', [SEA, 'tomato'], { g: T, pri: 2.3 }),
+    R('Cheesy Curry', '치즈 카레', ['spice', 'rice', 'cheese'], { g: T, pri: 3.2 }),
+    R('Cheesy Risotto', '치즈 리조또', [[SEA, 'mushroom'], 'rice', 'salt', 'cheese'], { g: T, pri: 4.2 }),
+    R('Crunchy Fried Rice', '고슬고슬 볶음밥', ['rice', 'egg', 'meatany', 'oil'], { g: T, pri: 4.2 }),
+    R('Cheesy Meat Bowl', '치즈 짐승 고기 덮밥', ['rice', 'raw_meat', 'salt', 'cheese'], { g: T, pri: 4.2 }),
+    R('Prime Cheesy Meat Bowl', '상급 치즈 짐승 고기 덮밥', ['rice', 'raw_prime_meat', 'salt', 'cheese'], { g: T, pri: 4.2 }),
+    R('Gourmet Cheesy Meat Bowl', '특급 치즈 짐승 고기 덮밥', ['rice', 'raw_gourmet_meat', 'salt', 'cheese'], { g: T, pri: 4.2 }),
+    R('Veggie Porridge', '야채 우유 죽', ['greens', 'rice', 'milk'], { g: T, pri: 3.2 }),
+    R('Melty Cheesy Bread', '사르르 치즈빵', ['wheat', 'cheese'], { g: T, pri: 2.3 }),
+    R('Hylian Tomato Pizza', '토마토 피자', ['wheat', 'cheese', 'tomato'], { g: T, pri: 3.3 }),
+    R('Cheesy Tomato', '치즈 토마토', ['tomato', 'cheese'], { g: T, pri: 2.3 }),
+    R('Cheesy Baked Fish', '해산물과 치즈구이', [SEA, 'cheese'], { g: T, pri: 2.3 }),
+    R('Cheesy Omelet', '치즈 오믈렛', ['egg', 'salt', 'mushroom', 'cheese'], { g: T, pri: 4.2 }),
+    R('Cheesecake', '치즈케이크', ['wheat', 'sugar', 'cheese'], { g: T, pri: 3.3 }),
+    R('Noble Pursuit', '브아이 밋 브오이', ['palm_fruit', 'hydromelon', 'voltfruit', 'salt'], { g: T, pri: 10 }),
+    R('Dark Stew', '마인 전골', ['dark', 'meatany', SEA], { g: T, pri: 20 }),
+    R('Dark Soup', '마인 수프', ['dark', 'milk', 'wheat', 'butter'], { g: T, pri: 21 }),
+    R('Dark Curry', '마인 카레', ['dark', 'rice', 'spice'], { g: T, pri: 20 }),
+    R('Dark Rice Ball', '마인 주먹밥', ['dark', 'rice', 'salt'], { g: T, pri: 20 }),
+    R('Dark Cake', '마인 케이크', ['dark', 'wheat', 'sugar', 'butter'], { g: T, pri: 21 }),
+  ];
+
+  // 특수 결과
+  const SPECIAL = {
+    dubious: { en: 'Dubious Food', ko: '애매한 요리' },
+    rockhard: { en: 'Rock-Hard Food', ko: '너무 딱딱한 요리' },
+    fairy: { en: 'Fairy Tonic', ko: '요정의 활력수' },
+  };
+
+  root.ZDATA = { EFFECTS, INGREDIENTS, CATEGORIES, RECIPES, SPECIAL };
+  if (typeof module !== 'undefined') module.exports = root.ZDATA;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+  <script>
+// 요리 계산 엔진
+(function (root) {
+  const D = root.ZDATA || (typeof require !== 'undefined' ? require('./data.js') : null);
+  const { EFFECTS, INGREDIENTS, RECIPES, SPECIAL } = D;
+
+  const BY_ID = Object.fromEntries(INGREDIENTS.map((i) => [i.id, i]));
+  const MAX_HP = 120;          // 30하트 (1/4 하트 단위)
+  const MAX_TIME = 30 * 60;    // 30분
+  const FAIRY_HP = 40;         // 요정 1마리당 10하트
+  const BASE_TIME = 30;        // 효과 없는 식재료 1개당 30초
+
+  const inGame = (x, game) => !x.g || x.g.includes(game);
+  const hasTag = (ing, tag) => ing.tags.includes(tag);
+  const slotMatches = (ing, slot) =>
+    Array.isArray(slot) ? slot.some((t) => hasTag(ing, t)) : hasTag(ing, slot);
+
+  // 각 슬롯을 서로 다른 재료 종류로 채울 수 있는지 (작은 규모라 백트래킹)
+  function assign(slots, types, used = new Set(), i = 0) {
+    if (i === slots.length) return true;
+    for (const t of types) {
+      if (used.has(t.id) || !slotMatches(t, slots[i])) continue;
+      used.add(t.id);
+      if (assign(slots, types, used, i + 1)) return true;
+      used.delete(t.id);
+    }
+    return false;
+  }
+
+  function matchRecipe(foods, game) {
+    const types = [...new Map(foods.map((f) => [f.id, f])).values()];
+    const candidates = RECIPES.filter((r) => inGame(r, game));
+    let strict = null;
+    let relaxed = null;
+
+    for (const r of candidates) {
+      if (!assign(r.req, types)) continue;
+      if (r.distinct && types.filter((t) => slotMatches(t, r.req[0])).length < r.distinct) continue;
+      const pri = r.pri ?? r.req.length;
+      const onlyOk = !r.only || types.every((t) => r.only.some((tag) => hasTag(t, tag)));
+      if (onlyOk) {
+        if (!strict || pri > strict.pri) strict = { r, pri };
+        continue;
+      }
+      // 딱 맞는 레시피가 없을 때를 위해, 가장 많은 재료를 설명하는 레시피를 기억
+      const tags = [...r.req.flat(), ...(r.only || [])];
+      const coverage = types.filter((t) => tags.some((tag) => hasTag(t, tag))).length;
+      if (!relaxed || coverage > relaxed.coverage || (coverage === relaxed.coverage && pri > relaxed.pri)) {
+        relaxed = { r, pri, coverage };
+      }
+    }
+    return strict ? strict.r : relaxed ? relaxed.r : null;
+  }
+
+  function fmtWheel(points) {
+    return Math.round(points * 0.2 * 10) / 10; // 1포인트 = 스태미나 게이지 1/5
+  }
+
+  // 재료 하나가 효과 지속시간에 더하는 초
+  function durationOf(i, key) {
+    if (i.cat === 'monster' || i.cat === 'dragon' || i.cat === 'special') return i.time;
+    if (i.time) return i.time;
+    if (i.eff === key) return EFFECTS[key].time;
+    return BASE_TIME;
+  }
+
+  function computeEffect(items, notes) {
+    const effItems = items.filter((i) => i.eff);
+    const kinds = [...new Set(effItems.map((i) => i.eff))];
+    if (kinds.length === 0) return null;
+    if (kinds.length > 1) {
+      notes.push(`서로 다른 효과(${kinds.map((k) => EFFECTS[k].ko).join(', ')})가 섞여서 효과가 사라졌어요.`);
+      return null;
+    }
+    const key = kinds[0];
+    const def = EFFECTS[key];
+    const points = effItems.reduce((s, i) => s + i.pot, 0);
+    const e = { key, ...def, points };
+
+    if (key === 'hearty') {
+      e.extraHearts = Math.min(points, 25);
+    } else if (key === 'energizing') {
+      e.wheels = Math.min(fmtWheel(points), 3);
+    } else if (key === 'enduring') {
+      e.wheels = Math.min(fmtWheel(points), 2);
+    } else if (key === 'sunny') {
+      e.gloomHearts = Math.min(points, 20);
+    } else {
+      e.maxLevel = def.fixedLevel || def.lv.length + 1;
+      e.level = def.fixedLevel || 1 + def.lv.filter((th) => points >= th).length;
+      if (def.fixedLevel) notes.push('속성 열매는 몇 개를 넣어도 효과가 Lv1로 고정돼요.');
+      const t = items.reduce((s, i) => s + durationOf(i, key), 0);
+      e.seconds = Math.min(t, MAX_TIME);
+    }
+    return e;
+  }
+
+  function cook(ids, game) {
+    const items = ids.map((id) => BY_ID[id]).filter((i) => i && inGame(i, game));
+    if (items.length === 0) return null;
+
+    const notes = [];
+    const rawHp = items.reduce((s, i) => s + i.hp, 0);
+    const fairies = items.filter((i) => i.id === 'fairy').length;
+    const critters = items.filter((i) => i.cat === 'critter');
+    const monsters = items.filter((i) => i.cat === 'monster');
+    const foods = items.filter((i) => !['critter', 'monster', 'mineral'].includes(i.cat) && !hasTag(i, 'neutral'));
+    const heal = (hp) => Math.min(MAX_HP, hp * 2 + FAIRY_HP * fairies);
+
+    const dubious = (why) => {
+      if (why) notes.push(why);
+      return { kind: 'dubious', ...SPECIAL.dubious, img: SPECIAL.dubious.en, hp: Math.max(4, rawHp), notes, items };
+    };
+    const critNote = () => {
+      if (items.some((i) => hasTag(i, 'crit'))) {
+        notes.push('용의 소재·별의 조각·황금 사과·기브도의 간을 넣으면 반드시 대성공(보너스 효과)이 나요. (보너스는 계산에 넣지 않았어요)');
+      }
+      if (items.some((i) => i.id === 'monster_extract')) {
+        notes.push('몬스터엑기스는 효과 레벨과 지속시간을 무작위로 바꿔요. 표시된 값은 엑기스를 빼고 계산한 값이에요.');
+      }
+    };
+
+    // 광석 · 장작이 들어가면 먹을 수 없는 요리
+    if (items.some((i) => i.cat === 'mineral')) {
+      notes.push('광석이나 장작은 먹을 수 없어요. 1/4하트만 회복됩니다.');
+      return { kind: 'rockhard', ...SPECIAL.rockhard, img: SPECIAL.rockhard.en, hp: 1, notes, items };
+    }
+
+    // 요정만
+    if (fairies === items.length) {
+      return { kind: 'fairy', ...SPECIAL.fairy, img: SPECIAL.fairy.en, hp: Math.min(MAX_HP, FAIRY_HP * fairies), notes, items };
+    }
+
+    // 물약: 벌레류 + 몬스터 부위 (같은 효과이거나 효과 없는 식재료는 함께 넣을 수 있음)
+    if (critters.length > 0 || monsters.length > 0) {
+      if (critters.length === 0) {
+        return dubious(foods.length
+          ? '몬스터 부위는 식재료와 함께 요리할 수 없어요. 벌레류와 함께 넣어야 물약이 됩니다.'
+          : '몬스터 부위만으로는 요리가 되지 않아요. 벌레류와 함께 넣으면 물약이 됩니다.');
+      }
+      if (monsters.length === 0) {
+        return dubious(foods.length
+          ? '벌레류는 식재료만으로는 요리할 수 없어요. 몬스터 부위를 하나 이상 넣어야 물약이 됩니다.'
+          : '물약을 만들려면 몬스터 부위가 하나 이상 필요해요.');
+      }
+      const effect = computeEffect(items, notes);
+      if (!effect) return dubious();
+      critNote();
+      const res = {
+        kind: 'elixir', en: `${effect.en} Elixir`, ko: `${effect.prefix} 물약`, img: `${effect.en} Elixir`,
+        hp: heal(rawHp), effect, notes, items,
+      };
+      if (effect.key === 'hearty') res.fullRecovery = true;
+      return res;
+    }
+
+    if (foods.length === 0) return dubious('먹을 수 있는 재료가 필요해요.');
+
+    const salts = foods.filter((i) => i.id === 'rock_salt').length;
+    if (salts > foods.length - salts) return dubious('암염이 다른 식재료보다 많으면 애매한 요리가 돼요.');
+
+    const recipe = matchRecipe(foods, game);
+    if (!recipe) return dubious('이 조합에 맞는 레시피가 없어요.');
+
+    const effect = computeEffect(items, notes);
+    critNote();
+    const res = {
+      kind: 'dish',
+      en: effect ? `${effect.en} ${recipe.en}` : recipe.en,
+      ko: effect ? `${effect.prefix} ${recipe.ko}` : recipe.ko,
+      img: recipe.en, recipe, hp: heal(rawHp), effect, notes, items,
+    };
+    if (effect && effect.key === 'hearty') res.fullRecovery = true;
+    return res;
+  }
+
+  const api = { cook, matchRecipe, BY_ID, inGame, slotMatches, MAX_HP };
+  root.ZCOOK = api;
+  if (typeof module !== 'undefined') module.exports = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+  <script>
+(function () {
+  const { EFFECTS, INGREDIENTS, CATEGORIES, RECIPES } = window.ZDATA;
+  const { cook, BY_ID, inGame, slotMatches, MAX_HP } = window.ZCOOK;
+
+  const MAX_POT = 5;
+  const state = { game: 'totk', pot: [], cat: 'all', query: '', bookQuery: '' };
+
+  const $ = (sel) => document.querySelector(sel);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // ------------------------------------------------------------ 이미지
+  // 위키의 게임 아이콘을 여러 후보 주소로 시도하고, 모두 실패하면 이모지로 대체한다.
+  const EMOJI = {
+    fruit: '🍎', mushroom: '🍄', veg: '🥕', flower: '🌸', nut: '🌰', meat: '🍖', poultry: '🍗',
+    fish: '🐟', seafood: '🦀', other: '🧂', critter: '🦋', monster: '👹', special: '✨', dragon: '🐉',
+    mineral: '💎', dish: '🍲', elixir: '🧪', dubious: '🤢', rockhard: '🪨', fairy: '🧚',
+  };
+  const GAME_PREFIX = { botw: 'BotW', totk: 'TotK' };
+
+  function imageUrls(name, game) {
+    const file = name.replace(/ /g, '_');
+    const enc = (f) => encodeURIComponent(f);
+    const order = game === 'totk' ? ['totk', 'botw'] : ['botw', 'totk'];
+    const urls = [];
+    for (const g of order) {
+      const P = GAME_PREFIX[g];
+      urls.push(
+        `https://zeldawiki.wiki/wiki/Special:FilePath/${enc(`${P}_${file}_Icon.png`)}`,
+        `https://www.zeldadungeon.net/wiki/Special:FilePath/${enc(`${file}_-_${P}_icon.png`)}`,
+        `https://zelda.fandom.com/wiki/Special:FilePath/${enc(`${P}_${file}_Icon.png`)}`,
+      );
+    }
+    return urls;
+  }
+
+  const imgCache = new Map(); // key -> 성공한 URL 또는 null(모두 실패)
+
+  function thumb(name, game, emojiKey, size = '') {
+    const key = `${game}|${name}`;
+    const emoji = EMOJI[emojiKey] || '❔';
+    const cached = imgCache.get(key);
+    if (cached === null) return `<span class="thumb ${size}"><span class="emoji">${emoji}</span></span>`;
+    const urls = cached ? [cached] : imageUrls(name, game);
+    return `<span class="thumb ${size}" data-key="${esc(key)}" data-emoji="${emoji}">` +
+      `<img alt="" referrerpolicy="no-referrer" src="${esc(urls[0])}" data-urls="${esc(urls.join('|'))}" data-i="0"></span>`;
+  }
+
+  const IMG_TIMEOUT = 6000; // 응답이 없는 주소는 이 시간 뒤 다음 후보로
+
+  function nextImage(img) {
+    const urls = img.dataset.urls.split('|');
+    const i = Number(img.dataset.i) + 1;
+    if (i < urls.length) {
+      img.dataset.i = i;
+      img.dataset.t = Date.now();
+      img.src = urls[i];
+    } else {
+      const box = img.parentElement;
+      imgCache.set(box.dataset.key, null);
+      box.innerHTML = `<span class="emoji">${box.dataset.emoji}</span>`;
+    }
+  }
+
+  document.addEventListener('error', (ev) => {
+    const img = ev.target;
+    if (img instanceof HTMLImageElement && img.dataset.urls) nextImage(img);
+  }, true);
+
+  document.addEventListener('load', (ev) => {
+    const img = ev.target;
+    if (img instanceof HTMLImageElement && img.dataset.urls) {
+      img.dataset.done = '1';
+      imgCache.set(img.parentElement.dataset.key, img.currentSrc || img.src);
+    }
+  }, true);
+
+  setInterval(() => {
+    const now = Date.now();
+    document.querySelectorAll('img[data-urls]:not([data-done])').forEach((img) => {
+      if (img.complete && img.naturalWidth > 0) { img.dataset.done = '1'; return; }
+      if (!img.dataset.t) { img.dataset.t = now; return; }
+      if (now - Number(img.dataset.t) > IMG_TIMEOUT) nextImage(img);
+    });
+  }, 1000);
+
+  // ------------------------------------------------------------ 공통
+  function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => t.classList.remove('show'), 1600);
+  }
+
+  const available = () => INGREDIENTS.filter((i) => inGame(i, state.game));
+
+  function fmtTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  function heartsHtml(q, yellow = false) {
+    const out = [];
+    let left = q;
+    while (left > 0) {
+      const part = Math.min(4, left);
+      out.push(`<span class="heart${yellow ? ' yellow' : ''}"><i style="width:${part * 25}%"></i></span>`);
+      left -= part;
+    }
+    return `<span class="hearts">${out.join('')}</span>`;
+  }
+
+  function heartsText(q) {
+    const h = q / 4;
+    return Number.isInteger(h) ? `${h}` : h.toFixed(2).replace(/0$/, '');
+  }
+
+  // ------------------------------------------------------------ 상태 · URL
+  function saveHash() {
+    const hash = `#${state.game}${state.pot.length ? '/' + state.pot.join(',') : ''}`;
+    history.replaceState(null, '', hash);
+  }
+
+  function loadHash() {
+    const [game, list] = location.hash.slice(1).split('/');
+    if (game === 'botw' || game === 'totk') state.game = game;
+    if (list) state.pot = list.split(',').filter((id) => BY_ID[id] && inGame(BY_ID[id], state.game)).slice(0, MAX_POT);
+  }
+
+  function setGame(game) {
+    state.game = game;
+    state.pot = state.pot.filter((id) => inGame(BY_ID[id], game));
+    render();
+  }
+
+  function addToPot(id) {
+    if (state.pot.length >= MAX_POT) {
+      toast('냄비에는 최대 5개까지 넣을 수 있어요');
+      return;
+    }
+    state.pot.push(id);
+    renderCook();
+  }
+
+  function removeFromPot(index) {
+    state.pot.splice(index, 1);
+    renderCook();
+  }
+
+  // ------------------------------------------------------------ 렌더링: 요리
+  function renderGameSwitch() {
+    document.querySelectorAll('.game-switch button').forEach((b) => {
+      b.setAttribute('aria-checked', String(b.dataset.game === state.game));
+    });
+    document.documentElement.dataset.game = state.game;
+  }
+
+  function renderPot() {
+    const slots = [];
+    for (let i = 0; i < MAX_POT; i++) {
+      const id = state.pot[i];
+      if (id) {
+        const ing = BY_ID[id];
+        slots.push(`<button type="button" class="slot filled" data-remove="${i}" title="${esc(ing.ko)} 빼기">${thumb(ing.en, state.game, ing.cat)}</button>`);
+      } else {
+        slots.push('<div class="slot"><span class="slot-empty">＋</span></div>');
+      }
+    }
+    $('#pot').innerHTML = slots.join('');
+    $('#pot-count').textContent = `${state.pot.length} / ${MAX_POT}`;
+  }
+
+  function effectHtml(e) {
+    if (!e) return '';
+    let body = `${e.icon} <b>${esc(e.prefix)}</b> <span class="muted">${esc(e.ko)}</span>`;
+    if (e.level) {
+      body += ` <span class="stars" title="${e.level}단계">${'★'.repeat(e.level)}${'☆'.repeat(e.maxLevel - e.level)}</span>`;
+      body += ` <span class="muted">· ${fmtTime(e.seconds)}</span>`;
+    }
+    if (e.wheels != null) body += ` <span class="muted">· 스태미나 게이지 ${e.wheels}바퀴</span>`;
+    if (e.extraHearts != null) body += `<div style="margin-top:4px">${heartsHtml(e.extraHearts * 4, true)} <span class="muted">노란 하트 +${e.extraHearts}</span></div>`;
+    if (e.gloomHearts != null) body += ` <span class="muted">· 독기 침식 하트 ${e.gloomHearts}칸 복구</span>`;
+    return `<div class="stat"><span class="stat-label">효과</span><div>${body}</div></div>`;
+  }
+
+  function renderResult() {
+    const box = $('#result');
+    const res = cook(state.pot, state.game);
+    if (!res) {
+      box.innerHTML = '<div class="result-empty">🍲<br>재료를 넣으면 여기에 요리 결과가 나와요</div>';
+      return;
+    }
+    const kindLabel = {
+      dish: ['요리', ''], elixir: ['물약', 'elixir'], fairy: ['물약', 'elixir'],
+      dubious: ['실패', 'bad'], rockhard: ['실패', 'bad'],
+    }[res.kind];
+    const emojiKey = res.kind === 'dish' ? 'dish' : res.kind;
+
+    let hp;
+    if (res.fullRecovery) hp = '<b>하트 전체 회복</b>';
+    else if (res.hp > 0) hp = `${heartsHtml(res.hp)} <span class="muted">${heartsText(res.hp)}하트${res.hp >= MAX_HP ? ' (최대)' : ''}</span>`;
+    else hp = '<span class="muted">회복 없음</span>';
+
+    let recipeHtml = '';
+    if (res.recipe) {
+      recipeHtml = `<div class="stat"><span class="stat-label">레시피</span><div class="recipe-req">${reqHtml(res.recipe)}</div></div>`;
+    }
+
+    box.innerHTML = `
+      <div class="result-main">
+        <div class="result-plate">${thumb(res.img, state.game, emojiKey, 'big')}</div>
+        <div>
+          <span class="kind-tag ${kindLabel[1]}">${kindLabel[0]}</span>
+          <div class="result-name">${esc(res.ko)}</div>
+          <div class="result-en">${esc(res.en)}</div>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><span class="stat-label">회복</span><div>${hp}</div></div>
+        ${effectHtml(res.effect)}
+        ${recipeHtml}
+      </div>
+      ${res.notes.length ? `<div class="notes">${res.notes.map((n) => `<p>💬 ${esc(n)}</p>`).join('')}</div>` : ''}
+    `;
+  }
+
+  function renderCats() {
+    const avail = available();
+    $('#cats').innerHTML = CATEGORIES.filter((c) => c.id === 'all' || avail.some((i) => catMatch(i, c)))
+      .map((c) => `<button type="button" class="chip${state.cat === c.id ? ' active' : ''}" data-cat="${c.id}">${c.ko}</button>`)
+      .join('');
+  }
+
+  function catMatch(ing, c) {
+    return c.id === 'all' || ing.cat === c.id || (c.also || []).includes(ing.cat);
+  }
+
+  function renderGrid() {
+    const q = state.query.trim().toLowerCase();
+    const cat = CATEGORIES.find((c) => c.id === state.cat) || CATEGORIES[0];
+    const list = available().filter((i) => catMatch(i, cat) &&
+      (!q || i.ko.toLowerCase().includes(q) || i.en.toLowerCase().includes(q)));
+    const full = state.pot.length >= MAX_POT;
+    const counts = {};
+    state.pot.forEach((id) => { counts[id] = (counts[id] || 0) + 1; });
+
+    $('#grid').innerHTML = list.length ? list.map((i) => `
+      <button type="button" class="tile" data-add="${i.id}" title="${esc(i.en)}"${full ? ' disabled' : ''}>
+        ${i.eff ? `<span class="tile-eff" title="${esc(EFFECTS[i.eff].prefix + ' · ' + EFFECTS[i.eff].ko)}">${EFFECTS[i.eff].icon}</span>` : ''}
+        ${counts[i.id] ? `<span class="tile-count">${counts[i.id]}</span>` : ''}
+        ${thumb(i.en, state.game, i.cat)}
+        <span class="tile-name">${esc(i.ko)}</span>
+      </button>`).join('') : '<div class="empty-grid">검색 결과가 없어요</div>';
+  }
+
+  function renderCook() {
+    renderPot();
+    renderResult();
+    renderGrid();
+    saveHash();
+  }
+
+  // ------------------------------------------------------------ 렌더링: 도감
+  const TAG_KO = {
+    meatany: '육류', meat: '짐승 고기류', poultry: '새 고기류', seafoodany: '어패류', fish: '생선',
+    seafood: '게·우렁이', fruit: '과일', mushroom: '버섯', greens: '채소·약초', nut: '견과류',
+    crab: '게', snail: '소라·우렁이', porgy: '도미', salmon: '맥스연어', pumpkin: '호박',
+    carrot: '당근', radish: '순무', honey: '원기벌의 벌꿀', sugar: '사탕수수', butter: '염소 버터',
+    milk: '신선 우유', egg: '새의 알', cheese: '하테노 치즈', wheat: '타반타 밀', rice: '하이랄 쌀',
+    salt: '암염', spice: '고론의 향신료', extract: '몬스터엑기스', banana: '칼날바나나', apple: '사과',
+    tomato: '하이랄토마토', oil: '기름병', dark: '어둠 덩어리',
+  };
+  const tagKo = (t) => TAG_KO[t] || (BY_ID[t] && BY_ID[t].ko) || t;
+
+  function reqHtml(r) {
+    const parts = r.req.map((slot) => esc(Array.isArray(slot) ? slot.map(tagKo).join(' 또는 ') : tagKo(slot)));
+    let html = parts.join('<span class="plus">+</span>');
+    if (r.distinct) html = `서로 다른 ${esc(tagKo(r.req[0]))} ${r.distinct}종류 이상`;
+    if (r.only && !r.distinct) html += ` <span class="muted">(${r.only.map(tagKo).join('·')}만)</span>`;
+    return html;
+  }
+
+  // 레시피를 만드는 예시 재료 조합 (효과 없는 재료 우선, 실제로 그 요리가 나오는지 확인)
+  function exampleFor(r) {
+    const pool = available().filter((i) => !['critter', 'monster', 'mineral', 'special', 'dragon'].includes(i.cat))
+      .sort((a, b) => (a.eff ? 1 : 0) - (b.eff ? 1 : 0));
+    const slots = r.distinct ? Array(r.distinct).fill(r.req[0]) : r.req;
+    const makes = (ids) => { const res = cook(ids, state.game); return res && res.recipe === r; };
+    let first = null;
+    const search = (i, picked) => {
+      if (i === slots.length) {
+        if (!first) first = [...picked];
+        return makes(picked) ? picked : null;
+      }
+      for (const ing of pool.filter((x) => !picked.includes(x.id) && slotMatches(x, slots[i])).slice(0, 8)) {
+        const found = search(i + 1, [...picked, ing.id]);
+        if (found) return found;
+      }
+      return null;
+    };
+    return search(0, []) || first || [];
+  }
+
+  function renderBook() {
+    const q = state.bookQuery.trim().toLowerCase();
+    const list = RECIPES.filter((r) => inGame(r, state.game) &&
+      (!q || r.ko.toLowerCase().includes(q) || r.en.toLowerCase().includes(q)));
+    $('#book').innerHTML = list.map((r, idx) => `
+      <div class="recipe">
+        ${thumb(r.en, state.game, 'dish', 'sm')}
+        <div class="recipe-body">
+          <div class="recipe-name">${esc(r.ko)}${r.g && r.g.length === 1 ? `<span class="badge-new">${r.g[0] === 'totk' ? '왕눈' : '야숨'} 전용</span>` : ''}</div>
+          <div class="recipe-en">${esc(r.en)}</div>
+          <div class="recipe-req">${reqHtml(r)}</div>
+        </div>
+        <button type="button" class="ghost" data-try="${RECIPES.indexOf(r)}">담기</button>
+      </div>`).join('') || '<div class="empty-grid">검색 결과가 없어요</div>';
+  }
+
+  function render() {
+    renderGameSwitch();
+    renderCats();
+    renderCook();
+    renderBook();
+  }
+
+  // ------------------------------------------------------------ 이벤트
+  document.querySelector('.game-switch').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-game]');
+    if (b && b.dataset.game !== state.game) setGame(b.dataset.game);
+  });
+
+  document.querySelector('.tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-tab]');
+    if (!b) return;
+    document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${b.dataset.tab}`));
+  });
+
+  $('#grid').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-add]');
+    if (b) addToPot(b.dataset.add);
+  });
+  $('#pot').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-remove]');
+    if (b) removeFromPot(Number(b.dataset.remove));
+  });
+  $('#cats').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-cat]');
+    if (!b) return;
+    state.cat = b.dataset.cat;
+    renderCats();
+    renderGrid();
+  });
+  $('#search').addEventListener('input', (e) => { state.query = e.target.value; renderGrid(); });
+  $('#book-search').addEventListener('input', (e) => { state.bookQuery = e.target.value; renderBook(); });
+  $('#btn-clear').addEventListener('click', () => { state.pot = []; renderCook(); });
+  $('#btn-share').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      toast('링크를 복사했어요');
+    } catch {
+      toast('복사에 실패했어요. 주소창의 링크를 사용하세요');
+    }
+  });
+  $('#book').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-try]');
+    if (!b) return;
+    state.pot = exampleFor(RECIPES[Number(b.dataset.try)]);
+    document.querySelector('.tabs button[data-tab="cook"]').click();
+    renderCook();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  loadHash();
+  render();
+})();
+</script>
+</body>
+</html>
