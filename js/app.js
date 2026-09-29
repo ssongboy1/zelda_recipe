@@ -595,6 +595,72 @@
     $('#find-results').innerHTML = '';
   }
 
+  // ------------------------------------------------------------ 요리 원리
+  const GAME_KO = { botw: '야생의 숨결', totk: '왕국의 눈물' };
+  let guideExamples = [];
+
+  // "A,B|C" → 재료 목록. | 는 게임마다 이름이 다른 재료의 대안 (예: 용의 뿔)
+  function exampleIds(spec) {
+    const G = GAMES[state.game];
+    const ids = [];
+    for (const item of spec.split(',')) {
+      const m = item.split('|').map((en) => G.materials.find((x) => x.en === en.trim())).find(Boolean);
+      if (!m) return null;
+      ids.push(m.id);
+    }
+    return ids;
+  }
+
+  function renderGuide() {
+    document.querySelectorAll('.guide-game').forEach((el) => { el.textContent = GAME_KO[state.game]; });
+    document.querySelectorAll('[data-game-only]').forEach((el) => { el.hidden = el.dataset.gameOnly !== state.game; });
+
+    guideExamples = [];
+    document.querySelectorAll('#tab-guide .ex').forEach((box) => {
+      const ids = exampleIds(box.dataset.ex);
+      if (!ids) { box.hidden = true; return; }
+      box.hidden = false;
+      const res = cook(ids, state.game);
+      const idx = guideExamples.push(ids) - 1;
+      const counts = new Map();
+      ids.forEach((id) => counts.set(id, (counts.get(id) || 0) + 1));
+      const ings = [...counts].map(([id, n]) => {
+        const m = material(state.game, id);
+        return `<span class="find-ing">${thumb(m.en, state.game, m.cat)}${esc(m.ko)}${n > 1 ? ` <b>×${n}</b>` : ''}</span>`;
+      }).join('<span class="ex-plus">+</span>');
+      const bad = res.kind === 'dubious' || res.kind === 'rockhard';
+      box.innerHTML = `
+        <div class="ex-ings">${ings}</div>
+        <div class="ex-arrow" aria-hidden="true">→</div>
+        <div class="ex-res">
+          <div class="ex-name${bad ? ' bad' : ''}">${esc(res.ko)}</div>
+          <div class="find-meta">${resultMeta(res) || '회복 없음'}</div>
+        </div>
+        <button type="button" class="ghost" data-guide-try="${idx}">해보기</button>`;
+      loadImages(box);
+    });
+
+    // 효과 단계표: 게임 데이터에서 바로 만든다
+    const G = GAMES[state.game];
+    const need = (E, L) => {
+      for (let p = 1; p < 200; p++) if (Math.floor(Math.fround(Math.fround(E.rate) * p)) >= L) return p;
+      return null;
+    };
+    const rows = Object.entries(EFFECTS).filter(([t, E]) => E.baseTime && G.materials.some((m) => m.eff === t)).map(([t, E]) => {
+      const mats = G.materials.filter((m) => m.eff === t).sort((a, b) => b.pot - a.pot);
+      return `<tr>
+        <th scope="row">${E.icon} ${esc(E.prefix)}<small>${esc(E.ko)}</small></th>
+        <td>×${E.rate.toFixed(2)}</td>
+        <td>${need(E, 2) ?? '-'}점</td>
+        <td>${E.max >= 3 ? `${need(E, 3)}점` : '<span class="muted">최대 Lv2</span>'}</td>
+        <td>${E.baseTime}초</td>
+        <td class="mats">${mats.map((m) => `${esc(m.ko)}<span class="pt">(${m.pot})</span>`).join(', ')}</td>
+      </tr>`;
+    }).join('');
+    $('#guide-effects').innerHTML = `<thead><tr><th scope="col">효과</th><th scope="col">배율</th><th scope="col">Lv2</th><th scope="col">Lv3</th><th scope="col">기본 시간</th><th scope="col">재료(포인트)</th></tr></thead><tbody>${rows}</tbody>`;
+    $('#guide-crit-rates').textContent = G.critByTypes.map((r, i) => `${i + 1}종류 ${r}%`).join(', ');
+  }
+
   function render() {
     renderGameSwitch();
     renderCats();
@@ -602,6 +668,7 @@
     renderCook();
     renderBook();
     renderFinder();
+    renderGuide();
   }
 
   // ------------------------------------------------------------ 이벤트
@@ -646,6 +713,21 @@
     const b = e.target.closest('[data-use]');
     if (!b) return;
     state.pot = findItems[Number(b.dataset.use)].ids.slice(0, MAX_POT);
+    document.querySelector('.tabs button[data-tab="cook"]').click();
+    renderCook();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  $('#tab-guide').addEventListener('click', (e) => {
+    // 목차: 주소(#냄비 상태)를 바꾸지 않고 해당 절로 스크롤만 한다
+    const link = e.target.closest('.guide-toc a');
+    if (link) {
+      e.preventDefault();
+      document.querySelector(link.getAttribute('href')).scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    const b = e.target.closest('[data-guide-try]');
+    if (!b) return;
+    state.pot = guideExamples[Number(b.dataset.guideTry)].slice(0, MAX_POT);
     document.querySelector('.tabs button[data-tab="cook"]').click();
     renderCook();
     window.scrollTo({ top: 0, behavior: 'smooth' });

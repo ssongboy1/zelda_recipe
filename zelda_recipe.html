@@ -380,6 +380,49 @@ footer p { margin: 4px 0; }
 .find-ing .thumb { width: 20px; height: 20px; }
 .find-ing .thumb .emoji { font-size: 13px; }
 .find-ing b { font-weight: 700; color: var(--accent); }
+
+/* ---------- 요리 원리 ---------- */
+.guide { display: grid; gap: 8px; padding-block: 20px; }
+.guide-head h2 { font-size: 20px; text-wrap: balance; }
+.guide-head p, .guide-sec p, .guide-sec li { max-width: 68ch; line-height: 1.7; }
+.guide-head p { margin: 8px 0 12px; }
+.guide-toc .chip { text-decoration: none; color: inherit; }
+.guide-sec { display: grid; gap: 10px; padding-top: 18px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
+.guide-sec h3 { font-size: 17px; text-wrap: balance; }
+.guide-sec p { margin: 0; }
+.guide-sec ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.muted-note { font-size: 13px; color: var(--muted); }
+.ex {
+  display: grid; grid-template-columns: minmax(0, 1.2fr) auto minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  background: var(--bg-2); border-radius: 12px; padding: 10px 12px;
+}
+.ex-ings { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.ex-ings .find-ing { background: var(--card); }
+.ex-plus { color: var(--muted); font-size: 12px; }
+.ex-arrow { color: var(--muted); font-weight: 700; }
+.ex-name { font-weight: 700; }
+.ex-name.bad { color: var(--danger); }
+@media (max-width: 560px) {
+  .ex { grid-template-columns: minmax(0, 1fr) auto; }
+  .ex-arrow { display: none; }
+  .ex-ings { grid-column: 1 / -1; }
+}
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+.guide-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.guide-table th, .guide-table td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; white-space: nowrap; }
+.guide-table thead th { background: var(--bg-2); font-size: 12px; color: var(--muted); }
+.guide-table tbody tr:last-child th, .guide-table tbody tr:last-child td { border-bottom: 0; }
+.guide-table th small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
+.guide-table td.mats { white-space: normal; min-width: 220px; }
+.guide-table .pt { color: var(--accent); font-weight: 700; margin-left: 1px; }
+.guide-foot { border-top: 1px solid var(--line); padding-top: 14px; font-size: 12px; color: var(--muted); }
+.guide-foot a { color: var(--accent); }
+
+/* 탭이 네 개라 좁은 화면에서는 옆으로 밀어서 본다 */
+.tabs { overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { flex: none; white-space: nowrap; }
+@media (max-width: 420px) { .tabs button { padding: 10px 10px; font-size: 14px; } }
 </style>
 </head>
 <body>
@@ -401,6 +444,7 @@ footer p { margin: 4px 0; }
     <button type="button" role="tab" data-tab="cook" class="active">요리하기</button>
     <button type="button" role="tab" data-tab="find">거꾸로 찾기</button>
     <button type="button" role="tab" data-tab="book">레시피 도감</button>
+    <button type="button" role="tab" data-tab="guide">요리 원리</button>
   </nav>
 
   <main>
@@ -483,6 +527,139 @@ footer p { margin: 4px 0; }
         </div>
         <div id="book" class="book"></div>
       </div>
+    </section>
+
+    <section id="tab-guide" class="tab-panel">
+      <article class="card guide">
+        <header class="guide-head">
+          <h2>요리는 이렇게 만들어져요</h2>
+          <p>냄비에 재료를 넣으면 게임은 <b>① 요리 이름</b>, <b>② 효과</b>, <b>③ 회복량과 지속시간</b>을 차례로 정해요. 아래 예시는 모두 지금 고른 게임(<span class="guide-game"></span>) 기준으로 그 자리에서 계산한 결과이고, 「해보기」를 누르면 냄비에 담겨요.</p>
+          <nav class="chips guide-toc" aria-label="목차">
+            <a class="chip" href="#g-name">요리 이름</a>
+            <a class="chip" href="#g-effect">효과</a>
+            <a class="chip" href="#g-level">효과 단계</a>
+            <a class="chip" href="#g-time">지속시간</a>
+            <a class="chip" href="#g-hp">회복량</a>
+            <a class="chip" href="#g-special">맥스·원기·스태미나</a>
+            <a class="chip" href="#g-elixir">물약</a>
+            <a class="chip" href="#g-fail">실패 요리</a>
+            <a class="chip" href="#g-crit">대성공</a>
+            <a class="chip" href="#g-diff">두 게임 차이</a>
+          </nav>
+        </header>
+
+        <section id="g-name" class="guide-sec">
+          <h3>① 요리 이름: 레시피 판정표를 위에서부터</h3>
+          <p>재료는 한 번에 최대 5개까지 넣을 수 있어요. 게임에는 레시피 판정표가 있고(야생의 숨결 138줄, 왕국의 눈물 175줄), 위에서부터 차례로 확인해서 <b>처음으로 조건이 맞는 줄</b>의 요리가 만들어져요. 조건은 "버섯류 + 육류"처럼 재료 분류로 쓰이거나, "사과 + 타반타 밀 + 염소 버터 + 사탕수수"처럼 특정 재료로 쓰여요.</p>
+          <ul>
+            <li>조건만 채우면 다른 재료를 더 넣어도 같은 요리가 돼요. 짐승 고기에 사과를 더해도 고기 꼬치구이예요.</li>
+            <li>한 종류의 재료만 넣으면(같은 재료 여러 개 포함) "단일 재료" 레시피로 따로 판정해요.</li>
+            <li>재료를 더 넣었는데 판정표에서 더 위에 있는 조건이 먼저 맞으면 요리가 바뀌어요. 사과와 버터를 넣으면 과일전골이 아니라 버터 바른 사과가 돼요.</li>
+          </ul>
+          <div class="ex" data-ex="Raw Meat"></div>
+          <div class="ex" data-ex="Raw Meat,Apple"></div>
+          <div class="ex" data-ex="Apple,Goat Butter"></div>
+          <div class="ex" data-ex="Hylian Rice,Raw Meat,Rock Salt"></div>
+        </section>
+
+        <section id="g-effect" class="guide-sec">
+          <h3>② 효과: 한 종류일 때만 붙어요</h3>
+          <p>칼날바나나(파워), 따끈따끈초 열매(화끈)처럼 효과가 있는 재료를 넣으면 요리 이름 앞에 효과가 붙어요. 효과 없는 재료는 얼마든지 섞어도 되지만, <b>서로 다른 효과를 가진 재료가 섞이면 효과가 모두 사라져요.</b></p>
+          <div class="ex" data-ex="Mighty Bananas,Apple"></div>
+          <div class="ex" data-ex="Mighty Bananas,Spicy Pepper"></div>
+        </section>
+
+        <section id="g-level" class="guide-sec">
+          <h3>③ 효과 단계: 포인트 합 × 배율</h3>
+          <p>효과 재료마다 효과 포인트가 있어요. 같은 효과 재료의 포인트를 모두 더해 효과별 배율을 곱하고, 소수점을 버린 값이 단계예요(최소 1단계). 예를 들어 칼날바나나는 2점이고 파워 배율은 0.45라서, 2개(4점)는 1.8 → Lv1, 3개(6점)는 2.7 → Lv2, 4개(8점)는 3.6 → Lv3이에요.</p>
+          <div class="ex" data-ex="Mighty Bananas,Mighty Bananas,Mighty Bananas"></div>
+          <div class="ex" data-ex="Mighty Bananas,Mighty Bananas,Mighty Bananas,Mighty Bananas"></div>
+          <p>아래 표는 효과마다 필요한 포인트와 재료별 포인트예요. 괄호 안 숫자가 재료 하나의 포인트예요.</p>
+          <div class="table-wrap"><table class="guide-table" id="guide-effects"></table></div>
+          <p class="muted-note" data-game-only="totk">왕국의 눈물의 속성 열매(화염의·냉기의·전기·물 열매)는 1점에 배율 0.35라서, 5개를 넣어도 1.75 → Lv1이에요. 그래서 열매 하나에 지속시간을 늘리는 재료를 섞는 편이 좋아요.</p>
+        </section>
+
+        <section id="g-time" class="guide-sec">
+          <h3>④ 지속시간: 재료마다 더해져요</h3>
+          <p>지속시간은 다음을 모두 더한 값이고, 최대 30분이에요.</p>
+          <ul>
+            <li>넣은 재료 하나당 <b>30초</b> (효과가 없는 재료도 포함)</li>
+            <li>효과 재료 하나당 <b>효과 기본 시간</b> (위 표의 "기본 시간". 파워 20초, 화끈 120초 등)</li>
+            <li>재료별 <b>추가 시간</b>: 하이랄 쌀 +30초, 사탕수수 +50초, 몬스터 부위, 용의 소재(용의 뿔은 30분) 등</li>
+          </ul>
+          <p>칼날바나나 하나에 하이랄 쌀을 넣으면 30초 + 20초 + (30초 + 쌀 추가 30초) = 1:50이에요.</p>
+          <div class="ex" data-ex="Mighty Bananas,Hylian Rice"></div>
+          <div class="ex" data-ex="Mighty Bananas,Shard of Dinraal's Horn|Dinraal's Horn"></div>
+        </section>
+
+        <section id="g-hp" class="guide-sec">
+          <h3>⑤ 회복량: 재료 회복량 × 2</h3>
+          <p>냄비 요리는 재료를 날로 먹을 때 회복량의 2배를 회복해요(최대 30하트). 여기에 일부 재료의 추가 회복(용의 소재 등)과 레시피 보너스가 더해져요. 딸기 크레이프처럼 레시피 자체에 보너스가 있는 요리도 있어요.</p>
+          <div class="ex" data-ex="Tabantha Wheat,Fresh Milk,Bird Egg,Cane Sugar,Wildberry"></div>
+        </section>
+
+        <section id="g-special" class="guide-sec">
+          <h3>⑥ 맥스 · 원기 · 스태미나 · 정화</h3>
+          <p>이 효과들은 단계 대신 양으로 계산해요.</p>
+          <ul>
+            <li><b>맥스</b>: 체력을 완전히 회복하고 노란 하트를 더해요. 포인트 4점 = 노란 하트 1칸이에요(맥스순무 12점 → 3칸).</li>
+            <li><b>원기</b>: 스태미나를 회복해요. 포인트 × 1.4를 내림한 값이 게이지 1/5 칸 수예요(최대 3바퀴).</li>
+            <li><b>스태미나</b>: 스태미나를 완전히 회복하고 노란 게이지를 더해요. 포인트 × 0.5를 내림한 값이 1/5 칸 수예요(재료로 낼 수 있는 최대는 2바퀴).</li>
+            <li data-game-only="totk"><b>정화</b>(왕국의 눈물): 독기로 줄어든 하트를 되돌려요. 포인트 4점 = 1칸이에요.</li>
+          </ul>
+          <div class="ex" data-ex="Hearty Radish,Hearty Radish"></div>
+          <div class="ex" data-ex="Stamella Shroom,Stamella Shroom"></div>
+        </section>
+
+        <section id="g-elixir" class="guide-sec">
+          <h3>⑦ 물약: 벌레류 + 몬스터 부위</h3>
+          <p>도마뱀·나비·개구리 같은 벌레류에 몬스터 부위를 하나 이상 넣으면 물약이 돼요. 효과는 벌레류가 정하고, 몬스터 부위는 지속시간을 늘려요(뿔 70초, 이빨 110초, 간 190초 정도). 같은 효과의 식재료나 효과 없는 식재료는 함께 넣어도 돼요.</p>
+          <div class="ex" data-ex="Hightail Lizard,Bokoblin Horn"></div>
+          <div class="ex" data-ex="Hightail Lizard,Bokoblin Horn,Rushroom"></div>
+          <p>반대로 <b>벌레류만</b>, <b>몬스터 부위만</b>, 또는 <b>둘 중 하나를 일반 식재료와</b> 섞으면 애매한 요리가 돼요.</p>
+          <div class="ex" data-ex="Hightail Lizard,Apple"></div>
+          <div class="ex" data-ex="Mighty Bananas,Bokoblin Guts"></div>
+        </section>
+
+        <section id="g-fail" class="guide-sec">
+          <h3>⑧ 실패 요리</h3>
+          <ul>
+            <li><b>애매한 요리</b>: 맞는 레시피가 없거나 물약 조합이 잘못됐을 때 나와요. 암염만 넣어도 애매한 요리예요. 재료 회복량만큼(2배 없이) 회복하고 최소 1하트예요.</li>
+            <li><b>너무 딱딱한 요리</b>: 광석이나 장작처럼 먹을 수 없는 것을 넣으면 나와요. 1/4하트만 회복해요.</li>
+            <li><b>요정의 활력수</b>: 요정만 넣으면 만들어져요.</li>
+          </ul>
+          <div class="ex" data-ex="Rock Salt"></div>
+          <div class="ex" data-ex="Apple,Flint"></div>
+          <div class="ex" data-ex="Fairy"></div>
+        </section>
+
+        <section id="g-crit" class="guide-sec">
+          <h3>⑨ 대성공</h3>
+          <p>요리가 끝날 때 가끔 다른 효과음이 나면 대성공이에요. 확률은 <b>넣은 재료의 종류 수</b>로 정해지고(<span id="guide-crit-rates"></span>), 재료 중 대성공 보너스가 가장 큰 것만큼 더해져요. 용의 소재와 별의 조각은 보너스가 100%라서 반드시 대성공해요.</p>
+          <p>대성공하면 다음 중 하나가 붙어요. 이미 최대인 항목은 후보에서 빠져요.</p>
+          <ul>
+            <li>하트 +3칸</li>
+            <li>효과 1단계 상승 (맥스는 노란 하트 +1, 원기·스태미나는 게이지 증가)</li>
+            <li>지속시간 +5분</li>
+          </ul>
+          <p>몬스터엑기스를 넣으면 대성공이 나지 않는 대신 회복량·효과 단계·지속시간(1분/10분/30분 등)이 무작위로 바뀌어요.</p>
+        </section>
+
+        <section id="g-diff" class="guide-sec">
+          <h3>⑩ 야생의 숨결과 왕국의 눈물 차이</h3>
+          <p>계산식(회복량, 효과 단계, 지속시간)은 두 게임이 같아요. 다른 점은 이래요.</p>
+          <ul>
+            <li>레시피 판정표가 달라요. 왕국의 눈물에는 토마토·치즈·기름병·원기초·어둠 덩어리 요리와 브아이 밋 브오이 등이 추가됐어요.</li>
+            <li>재료가 달라요. 왕국의 눈물에는 맥스두리안·맥스소라·가디언 부품이 없고, 하이랄토마토·해품이꽃·속성 열매·백룡의 소재 등이 있어요.</li>
+            <li>새 효과: 왕국의 눈물에 정화(독기 회복), 항독, 등불(발광), 논슬립, 스위밍, 이글이글·깡깡·우르릉(날씨별 공격력)이 있어요.</li>
+            <li>세부 판정: 왕국의 눈물은 재료 종류 단위로 레시피를 맞추고, 몬스터 부위가 아닌 재료의 추가 시간은 종류당 한 번만 더해요. 야생의 숨결은 같은 재료를 여러 개 넣으면 추가 시간도 개수만큼 더해져요. 효과도 회복도 없는 요리는 왕국의 눈물에서 1/4하트를 회복해요.</li>
+          </ul>
+        </section>
+
+        <footer class="guide-foot">
+          <p>이 설명과 계산은 게임의 요리 로직을 분석한 공개 자료(<a href="https://github.com/savage13/cooking" target="_blank" rel="noopener">savage13/cooking</a>, <a href="https://github.com/Echocolat/TOTK-Cooking-Calculator" target="_blank" rel="noopener">Echocolat/TOTK-Cooking-Calculator</a>)와 나무위키 문서를 바탕으로 했어요.</p>
+        </footer>
+      </article>
     </section>
   </main>
 
@@ -2206,6 +2383,72 @@ footer p { margin: 4px 0; }
     $('#find-results').innerHTML = '';
   }
 
+  // ------------------------------------------------------------ 요리 원리
+  const GAME_KO = { botw: '야생의 숨결', totk: '왕국의 눈물' };
+  let guideExamples = [];
+
+  // "A,B|C" → 재료 목록. | 는 게임마다 이름이 다른 재료의 대안 (예: 용의 뿔)
+  function exampleIds(spec) {
+    const G = GAMES[state.game];
+    const ids = [];
+    for (const item of spec.split(',')) {
+      const m = item.split('|').map((en) => G.materials.find((x) => x.en === en.trim())).find(Boolean);
+      if (!m) return null;
+      ids.push(m.id);
+    }
+    return ids;
+  }
+
+  function renderGuide() {
+    document.querySelectorAll('.guide-game').forEach((el) => { el.textContent = GAME_KO[state.game]; });
+    document.querySelectorAll('[data-game-only]').forEach((el) => { el.hidden = el.dataset.gameOnly !== state.game; });
+
+    guideExamples = [];
+    document.querySelectorAll('#tab-guide .ex').forEach((box) => {
+      const ids = exampleIds(box.dataset.ex);
+      if (!ids) { box.hidden = true; return; }
+      box.hidden = false;
+      const res = cook(ids, state.game);
+      const idx = guideExamples.push(ids) - 1;
+      const counts = new Map();
+      ids.forEach((id) => counts.set(id, (counts.get(id) || 0) + 1));
+      const ings = [...counts].map(([id, n]) => {
+        const m = material(state.game, id);
+        return `<span class="find-ing">${thumb(m.en, state.game, m.cat)}${esc(m.ko)}${n > 1 ? ` <b>×${n}</b>` : ''}</span>`;
+      }).join('<span class="ex-plus">+</span>');
+      const bad = res.kind === 'dubious' || res.kind === 'rockhard';
+      box.innerHTML = `
+        <div class="ex-ings">${ings}</div>
+        <div class="ex-arrow" aria-hidden="true">→</div>
+        <div class="ex-res">
+          <div class="ex-name${bad ? ' bad' : ''}">${esc(res.ko)}</div>
+          <div class="find-meta">${resultMeta(res) || '회복 없음'}</div>
+        </div>
+        <button type="button" class="ghost" data-guide-try="${idx}">해보기</button>`;
+      loadImages(box);
+    });
+
+    // 효과 단계표: 게임 데이터에서 바로 만든다
+    const G = GAMES[state.game];
+    const need = (E, L) => {
+      for (let p = 1; p < 200; p++) if (Math.floor(Math.fround(Math.fround(E.rate) * p)) >= L) return p;
+      return null;
+    };
+    const rows = Object.entries(EFFECTS).filter(([t, E]) => E.baseTime && G.materials.some((m) => m.eff === t)).map(([t, E]) => {
+      const mats = G.materials.filter((m) => m.eff === t).sort((a, b) => b.pot - a.pot);
+      return `<tr>
+        <th scope="row">${E.icon} ${esc(E.prefix)}<small>${esc(E.ko)}</small></th>
+        <td>×${E.rate.toFixed(2)}</td>
+        <td>${need(E, 2) ?? '-'}점</td>
+        <td>${E.max >= 3 ? `${need(E, 3)}점` : '<span class="muted">최대 Lv2</span>'}</td>
+        <td>${E.baseTime}초</td>
+        <td class="mats">${mats.map((m) => `${esc(m.ko)}<span class="pt">(${m.pot})</span>`).join(', ')}</td>
+      </tr>`;
+    }).join('');
+    $('#guide-effects').innerHTML = `<thead><tr><th scope="col">효과</th><th scope="col">배율</th><th scope="col">Lv2</th><th scope="col">Lv3</th><th scope="col">기본 시간</th><th scope="col">재료(포인트)</th></tr></thead><tbody>${rows}</tbody>`;
+    $('#guide-crit-rates').textContent = G.critByTypes.map((r, i) => `${i + 1}종류 ${r}%`).join(', ');
+  }
+
   function render() {
     renderGameSwitch();
     renderCats();
@@ -2213,6 +2456,7 @@ footer p { margin: 4px 0; }
     renderCook();
     renderBook();
     renderFinder();
+    renderGuide();
   }
 
   // ------------------------------------------------------------ 이벤트
@@ -2257,6 +2501,21 @@ footer p { margin: 4px 0; }
     const b = e.target.closest('[data-use]');
     if (!b) return;
     state.pot = findItems[Number(b.dataset.use)].ids.slice(0, MAX_POT);
+    document.querySelector('.tabs button[data-tab="cook"]').click();
+    renderCook();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  $('#tab-guide').addEventListener('click', (e) => {
+    // 목차: 주소(#냄비 상태)를 바꾸지 않고 해당 절로 스크롤만 한다
+    const link = e.target.closest('.guide-toc a');
+    if (link) {
+      e.preventDefault();
+      document.querySelector(link.getAttribute('href')).scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    const b = e.target.closest('[data-guide-try]');
+    if (!b) return;
+    state.pot = guideExamples[Number(b.dataset.guideTry)].slice(0, MAX_POT);
     document.querySelector('.tabs button[data-tab="cook"]').click();
     renderCook();
     window.scrollTo({ top: 0, behavior: 'smooth' });

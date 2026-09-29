@@ -372,3 +372,46 @@ footer p { margin: 4px 0; }
 .find-ing .thumb { width: 20px; height: 20px; }
 .find-ing .thumb .emoji { font-size: 13px; }
 .find-ing b { font-weight: 700; color: var(--accent); }
+
+/* ---------- 요리 원리 ---------- */
+.guide { display: grid; gap: 8px; padding-block: 20px; }
+.guide-head h2 { font-size: 20px; text-wrap: balance; }
+.guide-head p, .guide-sec p, .guide-sec li { max-width: 68ch; line-height: 1.7; }
+.guide-head p { margin: 8px 0 12px; }
+.guide-toc .chip { text-decoration: none; color: inherit; }
+.guide-sec { display: grid; gap: 10px; padding-top: 18px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
+.guide-sec h3 { font-size: 17px; text-wrap: balance; }
+.guide-sec p { margin: 0; }
+.guide-sec ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.muted-note { font-size: 13px; color: var(--muted); }
+.ex {
+  display: grid; grid-template-columns: minmax(0, 1.2fr) auto minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  background: var(--bg-2); border-radius: 12px; padding: 10px 12px;
+}
+.ex-ings { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.ex-ings .find-ing { background: var(--card); }
+.ex-plus { color: var(--muted); font-size: 12px; }
+.ex-arrow { color: var(--muted); font-weight: 700; }
+.ex-name { font-weight: 700; }
+.ex-name.bad { color: var(--danger); }
+@media (max-width: 560px) {
+  .ex { grid-template-columns: minmax(0, 1fr) auto; }
+  .ex-arrow { display: none; }
+  .ex-ings { grid-column: 1 / -1; }
+}
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+.guide-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.guide-table th, .guide-table td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; white-space: nowrap; }
+.guide-table thead th { background: var(--bg-2); font-size: 12px; color: var(--muted); }
+.guide-table tbody tr:last-child th, .guide-table tbody tr:last-child td { border-bottom: 0; }
+.guide-table th small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
+.guide-table td.mats { white-space: normal; min-width: 220px; }
+.guide-table .pt { color: var(--accent); font-weight: 700; margin-left: 1px; }
+.guide-foot { border-top: 1px solid var(--line); padding-top: 14px; font-size: 12px; color: var(--muted); }
+.guide-foot a { color: var(--accent); }
+
+/* 탭이 네 개라 좁은 화면에서는 옆으로 밀어서 본다 */
+.tabs { overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { flex: none; white-space: nowrap; }
+@media (max-width: 420px) { .tabs button { padding: 10px 10px; font-size: 14px; } }
