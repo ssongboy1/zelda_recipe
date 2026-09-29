@@ -176,6 +176,12 @@
     renderCook();
   }
 
+  // 목록에서 빼기: 같은 재료 중 마지막으로 넣은 것 하나를 뺀다
+  function takeFromPot(id) {
+    const index = state.pot.lastIndexOf(id);
+    if (index >= 0) removeFromPot(index);
+  }
+
   function removeFromPot(index) {
     state.pot.splice(index, 1);
     renderCook();
@@ -307,12 +313,14 @@
     const list = available().filter((i) => catMatch(i, cat) &&
       (!q || i.ko.toLowerCase().includes(q) || i.en.toLowerCase().includes(q)));
     $('#grid').innerHTML = list.length ? list.map((i) => `
-      <button type="button" class="tile" data-add="${i.id}" title="${esc(i.en)}">
+      <div class="tile" data-id="${i.id}">
+        <button type="button" class="tile-add" data-add="${i.id}" title="${esc(i.ko)} 넣기">
+          ${thumb(i.en, state.game, i.cat)}
+          <span class="tile-name">${esc(i.ko)}</span>
+        </button>
         ${i.eff ? `<span class="tile-eff" title="${esc(EFFECTS[i.eff].prefix + ' · ' + EFFECTS[i.eff].ko)}">${EFFECTS[i.eff].icon}</span>` : ''}
-        <span class="tile-count" hidden></span>
-        ${thumb(i.en, state.game, i.cat)}
-        <span class="tile-name">${esc(i.ko)}</span>
-      </button>`).join('') : '<div class="empty-grid">검색 결과가 없어요</div>';
+        <button type="button" class="tile-remove" data-take="${i.id}" aria-label="${esc(i.ko)} 하나 빼기" hidden>− <span class="tile-count"></span></button>
+      </div>`).join('') : '<div class="empty-grid">검색 결과가 없어요</div>';
     updateGrid();
     loadImages($('#grid'));
   }
@@ -323,11 +331,12 @@
     const counts = {};
     state.pot.forEach((id) => { counts[id] = (counts[id] || 0) + 1; });
     document.querySelectorAll('#grid .tile').forEach((tile) => {
-      const n = counts[tile.dataset.add] || 0;
-      const badge = tile.querySelector('.tile-count');
-      badge.hidden = !n;
-      badge.textContent = n || '';
-      tile.disabled = full;
+      const n = counts[tile.dataset.id] || 0;
+      const remove = tile.querySelector('.tile-remove');
+      remove.hidden = !n;
+      remove.querySelector('.tile-count').textContent = n || '';
+      tile.classList.toggle('selected', n > 0);
+      tile.querySelector('.tile-add').disabled = full;
     });
   }
 
@@ -418,6 +427,8 @@
   });
 
   $('#grid').addEventListener('click', (e) => {
+    const take = e.target.closest('[data-take]');
+    if (take) { takeFromPot(take.dataset.take); return; }
     const b = e.target.closest('[data-add]');
     if (b) addToPot(b.dataset.add);
   });

@@ -249,24 +249,33 @@ input[type="search"]:focus { border-color: var(--accent); }
   display: grid; gap: 8px;
   grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
 }
-.tile {
+.tile { position: relative; min-width: 0; display: flex; }
+.tile-add {
+  flex: 1; min-width: 0;
   border: 1px solid var(--line); background: var(--card); border-radius: 12px;
   padding: 8px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px;
-  position: relative; min-width: 0; transition: transform .08s, border-color .1s;
+  transition: transform .08s, border-color .1s, background-color .1s;
 }
-.tile:hover { border-color: var(--accent); transform: translateY(-1px); }
-.tile:active { transform: scale(0.97); }
-.tile:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.tile-add:hover { border-color: var(--accent); transform: translateY(-1px); }
+.tile-add:active { transform: scale(0.97); }
+.tile-add:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.tile.selected .tile-add { border: 2px solid var(--accent); background: var(--accent-soft); padding: 7px 3px 5px; }
+.tile.selected .tile-add:disabled { opacity: 1; }
 .tile-name {
   font-size: 12px; text-align: center; line-height: 1.25; word-break: keep-all;
   overflow-wrap: anywhere;
 }
-.tile-eff { position: absolute; top: 4px; left: 6px; font-size: 12px; }
-.tile-count {
-  position: absolute; top: 4px; right: 4px; background: var(--accent); color: #fff;
-  font-size: 11px; font-weight: 700; border-radius: 999px; min-width: 18px; height: 18px;
-  display: grid; place-items: center; padding: 0 5px;
+.tile-eff { position: absolute; top: 4px; left: 6px; font-size: 12px; pointer-events: none; }
+/* 선택된 재료에만 보이는 빼기 버튼 (개수 표시 겸용) */
+.tile-remove {
+  position: absolute; top: 3px; right: 3px; z-index: 1;
+  display: inline-flex; align-items: center; gap: 3px;
+  height: 26px; min-width: 40px; padding: 0 8px; justify-content: center;
+  border: 0; border-radius: 999px; background: var(--accent); color: var(--card);
+  font-size: 13px; font-weight: 700; line-height: 1;
 }
+.tile-remove:hover { filter: brightness(1.1); }
+.tile-remove:active { transform: scale(0.94); }
 .empty-grid { color: var(--muted); padding: 24px; text-align: center; grid-column: 1 / -1; }
 
 /* ---------- recipe book ---------- */
@@ -334,7 +343,7 @@ footer p { margin: 4px 0; }
             </div>
             <div id="pot" class="pot"></div>
             <button type="button" id="mini-result" class="mini-result" aria-label="완성될 요리 자세히 보기"></button>
-            <p class="hint">재료를 누르면 냄비에 들어가고, 냄비 안의 재료를 누르면 빠져요.</p>
+            <p class="hint">재료를 누르면 냄비에 들어가요. 빼려면 재료 칸의 「−」 버튼이나 냄비 속 재료를 누르세요.</p>
           </div>
 
           <div class="card result-card" id="result" aria-live="polite"></div>
@@ -1199,6 +1208,12 @@ footer p { margin: 4px 0; }
     renderCook();
   }
 
+  // 목록에서 빼기: 같은 재료 중 마지막으로 넣은 것 하나를 뺀다
+  function takeFromPot(id) {
+    const index = state.pot.lastIndexOf(id);
+    if (index >= 0) removeFromPot(index);
+  }
+
   function removeFromPot(index) {
     state.pot.splice(index, 1);
     renderCook();
@@ -1330,12 +1345,14 @@ footer p { margin: 4px 0; }
     const list = available().filter((i) => catMatch(i, cat) &&
       (!q || i.ko.toLowerCase().includes(q) || i.en.toLowerCase().includes(q)));
     $('#grid').innerHTML = list.length ? list.map((i) => `
-      <button type="button" class="tile" data-add="${i.id}" title="${esc(i.en)}">
+      <div class="tile" data-id="${i.id}">
+        <button type="button" class="tile-add" data-add="${i.id}" title="${esc(i.ko)} 넣기">
+          ${thumb(i.en, state.game, i.cat)}
+          <span class="tile-name">${esc(i.ko)}</span>
+        </button>
         ${i.eff ? `<span class="tile-eff" title="${esc(EFFECTS[i.eff].prefix + ' · ' + EFFECTS[i.eff].ko)}">${EFFECTS[i.eff].icon}</span>` : ''}
-        <span class="tile-count" hidden></span>
-        ${thumb(i.en, state.game, i.cat)}
-        <span class="tile-name">${esc(i.ko)}</span>
-      </button>`).join('') : '<div class="empty-grid">검색 결과가 없어요</div>';
+        <button type="button" class="tile-remove" data-take="${i.id}" aria-label="${esc(i.ko)} 하나 빼기" hidden>− <span class="tile-count"></span></button>
+      </div>`).join('') : '<div class="empty-grid">검색 결과가 없어요</div>';
     updateGrid();
     loadImages($('#grid'));
   }
@@ -1346,11 +1363,12 @@ footer p { margin: 4px 0; }
     const counts = {};
     state.pot.forEach((id) => { counts[id] = (counts[id] || 0) + 1; });
     document.querySelectorAll('#grid .tile').forEach((tile) => {
-      const n = counts[tile.dataset.add] || 0;
-      const badge = tile.querySelector('.tile-count');
-      badge.hidden = !n;
-      badge.textContent = n || '';
-      tile.disabled = full;
+      const n = counts[tile.dataset.id] || 0;
+      const remove = tile.querySelector('.tile-remove');
+      remove.hidden = !n;
+      remove.querySelector('.tile-count').textContent = n || '';
+      tile.classList.toggle('selected', n > 0);
+      tile.querySelector('.tile-add').disabled = full;
     });
   }
 
@@ -1441,6 +1459,8 @@ footer p { margin: 4px 0; }
   });
 
   $('#grid').addEventListener('click', (e) => {
+    const take = e.target.closest('[data-take]');
+    if (take) { takeFromPot(take.dataset.take); return; }
     const b = e.target.closest('[data-add]');
     if (b) addToPot(b.dataset.add);
   });
