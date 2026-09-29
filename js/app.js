@@ -17,46 +17,60 @@
   };
   const GAME_PREFIX = { botw: 'BotW', totk: 'TotK' };
 
+  // 주소 후보 템플릿. 한 번 성공한 템플릿을 기억해 다음 이미지부터 먼저 시도한다.
+  const TEMPLATES = [
+    (P, f) => `https://zeldawiki.wiki/wiki/Special:FilePath/${encodeURIComponent(`${P}_${f}_Icon.png`)}`,
+    (P, f) => `https://www.zeldadungeon.net/wiki/Special:FilePath/${encodeURIComponent(`${f}_-_${P}_icon.png`)}`,
+    (P, f) => `https://zelda.fandom.com/wiki/Special:FilePath/${encodeURIComponent(`${P}_${f}_Icon.png`)}`,
+  ];
+  const STORE_KEY = 'hyrule-cooking-images-v1';
+  const store = (() => {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { return {}; }
+  })();
+  store.urls = store.urls || {}; // key -> 최종 이미지 주소 (리다이렉트 이후)
+  store.pref = store.pref || {}; // 게임 -> 성공한 템플릿 번호
+  let saveTimer = null;
+  function saveStore() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch { /* 저장 불가 환경 */ }
+    }, 500);
+  }
+
   function imageUrls(name, game) {
     const file = name.replace(/ /g, '_');
-    const enc = (f) => encodeURIComponent(f);
-    const order = game === 'totk' ? ['totk', 'botw'] : ['botw', 'totk'];
+    const games = game === 'totk' ? ['totk', 'botw'] : ['botw', 'totk'];
+    const pref = store.pref[game];
+    const order = TEMPLATES.map((_, i) => i).sort((x, y) => (y === pref) - (x === pref));
     const urls = [];
-    for (const g of order) {
-      const P = GAME_PREFIX[g];
-      urls.push(
-        `https://zeldawiki.wiki/wiki/Special:FilePath/${enc(`${P}_${file}_Icon.png`)}`,
-        `https://www.zeldadungeon.net/wiki/Special:FilePath/${enc(`${file}_-_${P}_icon.png`)}`,
-        `https://zelda.fandom.com/wiki/Special:FilePath/${enc(`${P}_${file}_Icon.png`)}`,
-      );
-    }
+    for (const g of games) for (const i of order) urls.push(`${g}:${i}|${TEMPLATES[i](GAME_PREFIX[g], file)}`);
     return urls;
   }
 
-  const imgCache = new Map(); // key -> 성공한 URL 또는 null(모두 실패)
+  const failed = new Set(); // 이번 방문에서 모든 후보가 실패한 이미지
+  const IMG_TIMEOUT = 4000; // 응답이 없는 주소는 이 시간 뒤 다음 후보로
 
   function thumb(name, game, emojiKey, size = '') {
     const key = `${game}|${name}`;
     const emoji = EMOJI[emojiKey] || '❔';
-    const cached = imgCache.get(key);
-    if (cached === null) return `<span class="thumb ${size}"><span class="emoji">${emoji}</span></span>`;
-    const urls = cached ? [cached] : imageUrls(name, game);
+    if (failed.has(key)) return `<span class="thumb ${size}"><span class="emoji">${emoji}</span></span>`;
+    const saved = store.urls[key];
+    const urls = (saved ? [`saved|${saved}`] : []).concat(imageUrls(name, game));
     return `<span class="thumb ${size}" data-key="${esc(key)}" data-emoji="${emoji}">` +
-      `<img alt="" referrerpolicy="no-referrer" src="${esc(urls[0])}" data-urls="${esc(urls.join('|'))}" data-i="0"></span>`;
+      `<img alt="" referrerpolicy="no-referrer" data-urls="${esc(urls.join(' '))}" data-i="-1"></span>`;
   }
 
-  const IMG_TIMEOUT = 6000; // 응답이 없는 주소는 이 시간 뒤 다음 후보로
-
   function nextImage(img) {
-    const urls = img.dataset.urls.split('|');
+    const urls = img.dataset.urls.split(' ');
     const i = Number(img.dataset.i) + 1;
     if (i < urls.length) {
       img.dataset.i = i;
       img.dataset.t = Date.now();
-      img.src = urls[i];
+      img.src = urls[i].slice(urls[i].indexOf('|') + 1);
     } else {
       const box = img.parentElement;
-      imgCache.set(box.dataset.key, null);
+      failed.add(box.dataset.key);
+      delete store.urls[box.dataset.key];
       box.innerHTML = `<span class="emoji">${box.dataset.emoji}</span>`;
     }
   }
@@ -68,17 +82,36 @@
 
   document.addEventListener('load', (ev) => {
     const img = ev.target;
-    if (img instanceof HTMLImageElement && img.dataset.urls) {
-      img.dataset.done = '1';
-      imgCache.set(img.parentElement.dataset.key, img.currentSrc || img.src);
-    }
+    if (!(img instanceof HTMLImageElement) || !img.dataset.urls) return;
+    img.dataset.done = '1';
+    const key = img.parentElement.dataset.key;
+    const tag = img.dataset.urls.split(' ')[Number(img.dataset.i)].split('|')[0];
+    if (tag !== 'saved') store.pref[key.split('|')[0]] = Number(tag.split(':')[1]);
+    store.urls[key] = img.currentSrc || img.src;
+    saveStore();
   }, true);
+
+  // 화면 근처에 온 이미지만 불러온다
+  const observer = 'IntersectionObserver' in window
+    ? new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        observer.unobserve(e.target);
+        if (e.target.dataset.i === '-1') nextImage(e.target);
+      }
+    }, { rootMargin: '300px' })
+    : null;
+
+  function loadImages(rootEl) {
+    rootEl.querySelectorAll('img[data-urls][data-i="-1"]').forEach((img) => {
+      if (observer) observer.observe(img); else nextImage(img);
+    });
+  }
 
   setInterval(() => {
     const now = Date.now();
-    document.querySelectorAll('img[data-urls]:not([data-done])').forEach((img) => {
+    document.querySelectorAll('img[data-urls][data-t]:not([data-done])').forEach((img) => {
       if (img.complete && img.naturalWidth > 0) { img.dataset.done = '1'; return; }
-      if (!img.dataset.t) { img.dataset.t = now; return; }
       if (now - Number(img.dataset.t) > IMG_TIMEOUT) nextImage(img);
     });
   }, 1000);
@@ -169,6 +202,7 @@
     }
     $('#pot').innerHTML = slots.join('');
     $('#pot-count').textContent = `${state.pot.length} / ${MAX_POT}`;
+    loadImages($('#pot'));
   }
 
   function effectHtml(e) {
@@ -187,6 +221,7 @@
   function renderResult() {
     const box = $('#result');
     const res = cook(state.pot, state.game);
+    renderMini(res);
     if (!res) {
       box.innerHTML = '<div class="result-empty">🍲<br>재료를 넣으면 여기에 요리 결과가 나와요</div>';
       return;
@@ -223,6 +258,36 @@
       </div>
       ${res.notes.length ? `<div class="notes">${res.notes.map((n) => `<p>💬 ${esc(n)}</p>`).join('')}</div>` : ''}
     `;
+    loadImages(box);
+  }
+
+  // 휴대폰에서 냄비와 함께 화면 위에 고정되는 한 줄 요약
+  function renderMini(res) {
+    const box = $('#mini-result');
+    if (!res) {
+      box.innerHTML = '<span class="mini-empty">재료를 넣으면 완성될 요리가 여기에 나와요</span>';
+      return;
+    }
+    const bits = [];
+    if (res.fullRecovery) bits.push('하트 전체 회복');
+    else if (res.hp > 0) bits.push(`❤️ ${heartsText(res.hp)}`);
+    const e = res.effect;
+    if (e) {
+      let t = `${e.icon} ${e.prefix}`;
+      if (e.level) t += ` ${'★'.repeat(e.level)} ${fmtTime(e.seconds)}`;
+      if (e.extraHearts != null) t += ` +${e.extraHearts}`;
+      if (e.wheels != null) t += ` ${e.wheels}바퀴`;
+      bits.push(t);
+    }
+    const bad = res.kind === 'dubious' || res.kind === 'rockhard';
+    const emojiKey = res.kind === 'dish' ? 'dish' : res.kind;
+    box.innerHTML = `${thumb(res.img, state.game, emojiKey, 'sm')}
+      <span class="mini-text">
+        <span class="mini-name${bad ? ' bad' : ''}">${esc(res.ko)}</span>
+        <span class="mini-meta">${esc(bits.join(' · ') || '회복 없음')}</span>
+      </span>
+      <span class="mini-more" aria-hidden="true">자세히 ↓</span>`;
+    loadImages(box);
   }
 
   function renderCats() {
@@ -241,23 +306,35 @@
     const cat = CATEGORIES.find((c) => c.id === state.cat) || CATEGORIES[0];
     const list = available().filter((i) => catMatch(i, cat) &&
       (!q || i.ko.toLowerCase().includes(q) || i.en.toLowerCase().includes(q)));
-    const full = state.pot.length >= MAX_POT;
-    const counts = {};
-    state.pot.forEach((id) => { counts[id] = (counts[id] || 0) + 1; });
-
     $('#grid').innerHTML = list.length ? list.map((i) => `
-      <button type="button" class="tile" data-add="${i.id}" title="${esc(i.en)}"${full ? ' disabled' : ''}>
+      <button type="button" class="tile" data-add="${i.id}" title="${esc(i.en)}">
         ${i.eff ? `<span class="tile-eff" title="${esc(EFFECTS[i.eff].prefix + ' · ' + EFFECTS[i.eff].ko)}">${EFFECTS[i.eff].icon}</span>` : ''}
-        ${counts[i.id] ? `<span class="tile-count">${counts[i.id]}</span>` : ''}
+        <span class="tile-count" hidden></span>
         ${thumb(i.en, state.game, i.cat)}
         <span class="tile-name">${esc(i.ko)}</span>
       </button>`).join('') : '<div class="empty-grid">검색 결과가 없어요</div>';
+    updateGrid();
+    loadImages($('#grid'));
+  }
+
+  // 냄비가 바뀌면 목록은 그대로 두고 개수 표시만 바꾼다 (이미지를 다시 받지 않도록)
+  function updateGrid() {
+    const full = state.pot.length >= MAX_POT;
+    const counts = {};
+    state.pot.forEach((id) => { counts[id] = (counts[id] || 0) + 1; });
+    document.querySelectorAll('#grid .tile').forEach((tile) => {
+      const n = counts[tile.dataset.add] || 0;
+      const badge = tile.querySelector('.tile-count');
+      badge.hidden = !n;
+      badge.textContent = n || '';
+      tile.disabled = full;
+    });
   }
 
   function renderCook() {
     renderPot();
     renderResult();
-    renderGrid();
+    updateGrid();
     saveHash();
   }
 
@@ -316,11 +393,13 @@
         </div>
         <button type="button" class="ghost" data-try="${RECIPES.indexOf(r)}">담기</button>
       </div>`).join('') || '<div class="empty-grid">검색 결과가 없어요</div>';
+    loadImages($('#book'));
   }
 
   function render() {
     renderGameSwitch();
     renderCats();
+    renderGrid();
     renderCook();
     renderBook();
   }
@@ -355,6 +434,9 @@
   });
   $('#search').addEventListener('input', (e) => { state.query = e.target.value; renderGrid(); });
   $('#book-search').addEventListener('input', (e) => { state.bookQuery = e.target.value; renderBook(); });
+  $('#mini-result').addEventListener('click', () => {
+    if (state.pot.length) $('#result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
   $('#btn-clear').addEventListener('click', () => { state.pot = []; renderCook(); });
   $('#btn-share').addEventListener('click', async () => {
     try {

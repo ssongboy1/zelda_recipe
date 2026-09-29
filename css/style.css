@@ -55,6 +55,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; }
 body {
   background: var(--bg);
@@ -64,6 +65,7 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 input { font: inherit; color: inherit; }
 h1, h2, h3 { margin: 0; line-height: 1.25; }
 .muted { color: var(--muted); font-weight: 400; }
@@ -122,7 +124,21 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
 .left { display: grid; gap: 16px; position: sticky; top: 12px; }
 @media (max-width: 860px) {
   .cook-layout { grid-template-columns: minmax(0, 1fr); }
-  .left { position: static; }
+  /* 휴대폰: 냄비 카드가 스크롤해도 화면 위에 붙어 있도록 한 단계 위 격자에 직접 놓는다 */
+  .left { display: contents; }
+  .pot-card {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+    padding: 10px 12px; box-shadow: 0 6px 18px rgba(40, 30, 5, 0.16);
+  }
+  .pot-card .card-head { margin-bottom: 8px; }
+  .pot-card .card-head h2 { font-size: 15px; }
+  .pot-card .hint { display: none; }
+  .pot { gap: 6px; }
+  .slot { aspect-ratio: auto; height: 52px; border-radius: 10px; }
+  .slot .thumb { width: 40px; height: 40px; }
+  .slot .thumb .emoji { font-size: 24px; }
+  .pot-card .mini-result { display: flex; }
+  .result-card { scroll-margin-top: 170px; }
 }
 
 .card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
@@ -148,6 +164,20 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
 }
 .slot .thumb { width: 100%; height: 100%; }
 .slot-empty { color: var(--muted); font-size: 20px; opacity: 0.5; }
+
+/* ---------- mini result (휴대폰 전용) ---------- */
+.mini-result {
+  display: none; align-items: center; gap: 10px; width: 100%; margin-top: 8px;
+  padding: 6px 10px 6px 6px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--bg-2); text-align: left; min-height: 48px;
+}
+.mini-result:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mini-text { flex: 1; min-width: 0; display: grid; }
+.mini-name { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-name.bad { color: var(--danger); }
+.mini-meta { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-more { flex: none; font-size: 12px; color: var(--accent); }
+.mini-empty { font-size: 13px; color: var(--muted); padding: 6px 4px; }
 
 /* ---------- images ---------- */
 .thumb {
