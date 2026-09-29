@@ -429,12 +429,179 @@
     loadImages($('#book'));
   }
 
+  // ------------------------------------------------------------ 거꾸로 찾기
+  const { findByEffect, findFromInventory, effectsFor, TIMED } = window.ZFIND;
+  const OWNED_KEY = 'hyrule-cooking-owned-v1';
+  const finder = { mode: 'effect', type: null, invQuery: '' };
+  const owned = (() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(OWNED_KEY)) || {};
+      return { botw: new Set(saved.botw || []), totk: new Set(saved.totk || []) };
+    } catch { return { botw: new Set(), totk: new Set() }; }
+  })();
+  function saveOwned() {
+    try { localStorage.setItem(OWNED_KEY, JSON.stringify({ botw: [...owned.botw], totk: [...owned.totk] })); } catch { /* 저장 불가 */ }
+  }
+
+  function setMode(mode) {
+    finder.mode = mode;
+    document.querySelectorAll('.seg [data-mode]').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+    $('#mode-effect').hidden = mode !== 'effect';
+    $('#mode-inventory').hidden = mode !== 'inventory';
+    $('#find-results').innerHTML = '';
+  }
+
+  function renderEffectChips() {
+    const types = effectsFor(state.game);
+    if (!types.includes(finder.type)) finder.type = types.includes('AttackUp') ? 'AttackUp' : types[0];
+    $('#eff-chips').innerHTML = types.map((t) => `
+      <button type="button" class="chip${t === finder.type ? ' active' : ''}" data-eff="${t}" title="${esc(EFFECTS[t].ko)}">
+        ${EFFECTS[t].icon} ${esc(EFFECTS[t].prefix)} <small>${esc(EFFECTS[t].ko)}</small>
+      </button>`).join('');
+    const E = EFFECTS[finder.type];
+    const timed = TIMED(finder.type);
+    $('#f-level-wrap').hidden = !timed;
+    if (timed) {
+      const prev = Number($('#f-level').value) || 1;
+      $('#f-level').innerHTML = Array.from({ length: E.max }, (_, i) => `<option value="${i + 1}">Lv${i + 1} 이상</option>`).join('');
+      $('#f-level').value = String(Math.min(prev, E.max));
+    }
+  }
+
+  const CAT_KO = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.ko]));
+  function renderInventory() {
+    const q = finder.invQuery.trim().toLowerCase();
+    const mine = owned[state.game];
+    const groups = new Map();
+    for (const m of available()) {
+      if (m.en === 'Monster Extract' || m.tag === 'CookOther' || m.tag === 'CookOre') continue;
+      if (q && !m.ko.toLowerCase().includes(q) && !m.en.toLowerCase().includes(q)) continue;
+      if (!groups.has(m.cat)) groups.set(m.cat, []);
+      groups.get(m.cat).push(m);
+    }
+    $('#inv-grid').innerHTML = [...groups].map(([cat, list]) => `
+      <div class="inv-group">
+        <h4>${esc(CAT_KO[cat] || cat)}</h4>
+        <div class="inv-items">${list.map((m) => `
+          <button type="button" class="inv-item" data-own="${m.id}" aria-pressed="${mine.has(m.id)}">
+            ${thumb(m.en, state.game, m.cat)}${esc(m.ko)}
+          </button>`).join('')}</div>
+      </div>`).join('') || '<div class="find-empty">검색 결과가 없어요</div>';
+    updateOwnedCount();
+    loadImages($('#inv-grid'));
+  }
+  function updateOwnedCount() {
+    const n = [...owned[state.game]].filter((id) => material(state.game, id)).length;
+    $('#inv-count').textContent = n ? `(${n}개 선택)` : '';
+  }
+
+  function resultMeta(res) {
+    const bits = [];
+    if (res.fullRecovery) bits.push('❤️ 전체 회복');
+    else if (res.hp > 0) bits.push(`❤️ ${heartsText(res.hp)}하트`);
+    const e = res.effect;
+    if (e) {
+      let t = `${e.icon} ${esc(e.prefix)}`;
+      if (e.level) t += ` <span class="stars">${'★'.repeat(e.level)}${'☆'.repeat(Math.max(0, e.maxLevel - e.level))}</span> ${fmtTime(e.seconds)}`;
+      if (e.extraHearts != null) t += ` 노란 하트 +${e.extraHearts}`;
+      if (e.wheels != null) t += ` 스태미나 ${e.wheels}바퀴`;
+      if (e.gloomHearts != null) t += ` 독기 회복 ${e.gloomHearts}칸`;
+      bits.push(t);
+    }
+    if (res.crit >= 100) bits.push('대성공 확정');
+    return bits.join(' · ');
+  }
+
+  let findItems = [];
+  function findItemHtml(f, idx) {
+    const counts = new Map();
+    f.ids.forEach((id) => counts.set(id, (counts.get(id) || 0) + 1));
+    const ings = [...counts].map(([id, n]) => {
+      const m = material(state.game, id);
+      return `<span class="find-ing">${thumb(m.en, state.game, m.cat)}${esc(m.ko)}${n > 1 ? ` <b>×${n}</b>` : ''}</span>`;
+    }).join('');
+    const emojiKey = f.res.kind === 'dish' ? 'dish' : f.res.kind;
+    return `<div class="find-item">
+      ${thumb(f.res.img, state.game, emojiKey, 'sm')}
+      <div>
+        ${f.label ? `<span class="find-tag">${esc(f.label)}</span>` : ''}
+        <div class="find-name">${esc(f.res.ko)}</div>
+        <div class="find-meta">${resultMeta(f.res)}</div>
+        <div class="find-ings">${ings}</div>
+      </div>
+      <button type="button" class="ghost" data-use="${idx}">냄비에 담기</button>
+    </div>`;
+  }
+
+  function showFindResults(sections) {
+    findItems = [];
+    const html = sections.map(({ title, items, empty }) => {
+      const start = findItems.length;
+      findItems.push(...items);
+      return `<div class="find-section">
+        ${title ? `<h3>${esc(title)}</h3>` : ''}
+        ${items.length ? `<div class="find-list">${items.map((f, i) => findItemHtml(f, start + i)).join('')}</div>` : `<div class="find-empty">${esc(empty || '찾은 조합이 없어요')}</div>`}
+      </div>`;
+    }).join('');
+    $('#find-results').innerHTML = html;
+    loadImages($('#find-results'));
+    $('#find-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // 계산이 끝날 때까지 버튼에 진행 상태를 보여준다
+  function runBusy(button, work) {
+    const label = button.innerHTML;
+    button.disabled = true;
+    button.textContent = '찾는 중…';
+    setTimeout(() => {
+      try { work(); } finally { button.disabled = false; button.innerHTML = label; updateOwnedCount(); }
+    }, 30);
+  }
+
+  function runEffectSearch() {
+    runBusy($('#f-go'), () => {
+      const E = EFFECTS[finder.type];
+      const minLevel = TIMED(finder.type) ? Number($('#f-level').value) : 1;
+      const items = findByEffect(state.game, {
+        type: finder.type, minLevel, sort: $('#f-sort').value,
+        allowCrit: $('#f-crit').checked, allowElixir: $('#f-elixir').checked,
+      });
+      showFindResults([{
+        title: `${E.prefix} (${E.ko})${TIMED(finder.type) ? ` Lv${minLevel} 이상` : ''} 추천 조합`,
+        items,
+        empty: TIMED(finder.type) && minLevel > 1 ? '이 조건으로는 만들 수 없어요. 최소 단계를 낮추거나 용의 소재 쓰기를 켜 보세요.' : '찾은 조합이 없어요',
+      }]);
+    });
+  }
+
+  function runInventorySearch() {
+    const ids = [...owned[state.game]].filter((id) => material(state.game, id));
+    if (!ids.length) {
+      showFindResults([{ title: '', items: [], empty: '먼저 가진 재료를 체크하세요.' }]);
+      return;
+    }
+    runBusy($('#inv-go'), () => {
+      const { picks, meals } = findFromInventory(state.game, ids);
+      showFindResults([
+        { title: '추천', items: picks },
+        { title: `만들 수 있는 요리 ${meals.length}가지`, items: meals, empty: '가진 재료로 만들 수 있는 요리가 없어요' },
+      ]);
+    });
+  }
+
+  function renderFinder() {
+    renderEffectChips();
+    renderInventory();
+    $('#find-results').innerHTML = '';
+  }
+
   function render() {
     renderGameSwitch();
     renderCats();
     renderGrid();
     renderCook();
     renderBook();
+    renderFinder();
   }
 
   // ------------------------------------------------------------ 이벤트
@@ -450,6 +617,39 @@
     document.querySelectorAll('.tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${b.dataset.tab}`));
   });
 
+  document.querySelector('.seg').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-mode]');
+    if (b && b.dataset.mode !== finder.mode) setMode(b.dataset.mode);
+  });
+  $('#eff-chips').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-eff]');
+    if (!b) return;
+    finder.type = b.dataset.eff;
+    renderEffectChips();
+    $('#find-results').innerHTML = '';
+  });
+  $('#f-go').addEventListener('click', runEffectSearch);
+  $('#inv-go').addEventListener('click', runInventorySearch);
+  $('#inv-search').addEventListener('input', (e) => { finder.invQuery = e.target.value; renderInventory(); });
+  $('#inv-clear').addEventListener('click', () => { owned[state.game].clear(); saveOwned(); renderInventory(); });
+  $('#inv-grid').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-own]');
+    if (!b) return;
+    const set = owned[state.game];
+    const id = b.dataset.own;
+    if (set.has(id)) set.delete(id); else set.add(id);
+    b.setAttribute('aria-pressed', String(set.has(id)));
+    saveOwned();
+    updateOwnedCount();
+  });
+  $('#find-results').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-use]');
+    if (!b) return;
+    state.pot = findItems[Number(b.dataset.use)].ids.slice(0, MAX_POT);
+    document.querySelector('.tabs button[data-tab="cook"]').click();
+    renderCook();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
   $('#grid').addEventListener('click', (e) => {
     const take = e.target.closest('[data-take]');
     if (take) { takeFromPot(take.dataset.take); return; }

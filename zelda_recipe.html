@@ -307,6 +307,79 @@ footer p { margin: 4px 0; }
   font-size: 14px; opacity: 0; pointer-events: none; transition: all .2s;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- 거꾸로 찾기 ---------- */
+.finder { display: grid; gap: 14px; }
+.seg {
+  display: inline-flex; justify-self: start; background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: 999px; padding: 4px; gap: 2px; max-width: 100%;
+}
+.seg button {
+  border: 0; background: transparent; padding: 7px 14px; border-radius: 999px;
+  font-weight: 600; font-size: 14px; color: var(--muted);
+}
+.seg button.active { background: var(--card); color: var(--text); box-shadow: var(--shadow); }
+.mode { display: grid; gap: 12px; }
+.f-label { font-size: 13px; font-weight: 700; color: var(--muted); }
+.f-help { margin: 0; font-size: 13px; color: var(--muted); }
+.eff-chips .chip { display: inline-flex; align-items: center; gap: 4px; }
+.eff-chips .chip small { color: var(--muted); font-size: 11px; }
+.eff-chips .chip.active small { color: inherit; opacity: 0.75; }
+.f-row { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.f-field { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+.f-field select {
+  font: inherit; color: var(--text); background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 8px;
+}
+.f-check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.f-check input { width: 18px; height: 18px; accent-color: var(--accent); }
+.primary {
+  justify-self: start; border: 0; border-radius: 10px; padding: 10px 18px;
+  background: var(--accent); color: var(--card); font-weight: 700; font-size: 15px;
+}
+.primary:hover { filter: brightness(1.08); }
+.primary:disabled { opacity: 0.6; cursor: progress; }
+
+.inv-head { display: flex; gap: 8px; align-items: center; }
+.inv-head input { flex: 1; min-width: 0; }
+.inv-grid { display: grid; gap: 10px; max-height: 420px; overflow-y: auto; padding-right: 4px; }
+.inv-group { display: grid; gap: 6px; }
+.inv-group h4 { margin: 0; font-size: 12px; color: var(--muted); }
+.inv-items { display: flex; flex-wrap: wrap; gap: 6px; }
+.inv-item {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px 3px 4px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: 13px;
+}
+.inv-item .thumb { width: 24px; height: 24px; }
+.inv-item .thumb .emoji { font-size: 16px; }
+.inv-item[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.inv-item[aria-pressed="true"]::before { content: "✓"; color: var(--accent); font-weight: 700; margin-left: 4px; }
+
+.find-results { display: grid; gap: 10px; margin-top: 16px; }
+.find-empty { color: var(--muted); text-align: center; padding: 28px 8px; }
+.find-section { display: grid; gap: 8px; }
+.find-section h3 { font-size: 15px; margin: 6px 0 0; }
+.find-list { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+@media (max-width: 420px) { .find-list { grid-template-columns: minmax(0, 1fr); } }
+.find-item {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px;
+}
+.find-tag {
+  display: inline-block; font-size: 11px; font-weight: 700; color: var(--accent-2);
+  border: 1px solid var(--accent-2); border-radius: 6px; padding: 0 5px; margin-bottom: 2px;
+}
+.find-name { font-weight: 700; font-size: 15px; }
+.find-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.find-meta .stars { font-size: 11px; }
+.find-ings { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.find-ing {
+  display: inline-flex; align-items: center; gap: 2px; font-size: 12px; background: var(--bg-2);
+  border-radius: 999px; padding: 1px 8px 1px 2px;
+}
+.find-ing .thumb { width: 20px; height: 20px; }
+.find-ing .thumb .emoji { font-size: 13px; }
+.find-ing b { font-weight: 700; color: var(--accent); }
 </style>
 </head>
 <body>
@@ -326,6 +399,7 @@ footer p { margin: 4px 0; }
 
   <nav class="tabs" role="tablist">
     <button type="button" role="tab" data-tab="cook" class="active">요리하기</button>
+    <button type="button" role="tab" data-tab="find">거꾸로 찾기</button>
     <button type="button" role="tab" data-tab="book">레시피 도감</button>
   </nav>
 
@@ -357,6 +431,49 @@ footer p { margin: 4px 0; }
           <div id="grid" class="grid"></div>
         </div>
       </div>
+    </section>
+
+    <section id="tab-find" class="tab-panel">
+      <div class="card finder">
+        <div class="seg" role="tablist" aria-label="찾는 방법">
+          <button type="button" role="tab" data-mode="effect" class="active">원하는 효과로</button>
+          <button type="button" role="tab" data-mode="inventory">가진 재료로</button>
+        </div>
+
+        <div id="mode-effect" class="mode">
+          <div class="f-label">효과</div>
+          <div id="eff-chips" class="chips eff-chips"></div>
+          <div class="f-row">
+            <label class="f-field" id="f-level-wrap">최소 단계
+              <select id="f-level"></select>
+            </label>
+            <label class="f-field">정렬
+              <select id="f-sort">
+                <option value="time">효과 지속시간 긴 순</option>
+                <option value="hp">회복량 많은 순</option>
+                <option value="few">재료 적은 순</option>
+              </select>
+            </label>
+          </div>
+          <div class="f-row">
+            <label class="f-check"><input type="checkbox" id="f-crit"> 용의 소재·별의 조각 쓰기</label>
+            <label class="f-check"><input type="checkbox" id="f-elixir" checked> 물약(벌레류+몬스터 부위)도 찾기</label>
+          </div>
+          <button type="button" id="f-go" class="primary">조합 찾기</button>
+        </div>
+
+        <div id="mode-inventory" class="mode" hidden>
+          <p class="f-help">가진 재료를 눌러 체크하세요. 개수는 따지지 않아서, 같은 재료를 여러 개 쓰는 조합도 나와요. 체크한 재료는 이 브라우저에 저장돼요.</p>
+          <div class="inv-head">
+            <input id="inv-search" type="search" placeholder="재료 검색 (한글/영어)" autocomplete="off">
+            <button type="button" id="inv-clear" class="ghost">모두 해제</button>
+          </div>
+          <div id="inv-grid" class="inv-grid"></div>
+          <button type="button" id="inv-go" class="primary">만들 수 있는 요리 찾기 <span id="inv-count"></span></button>
+        </div>
+      </div>
+
+      <div id="find-results" class="find-results" aria-live="polite"></div>
     </section>
 
     <section id="tab-book" class="tab-panel">
@@ -1312,6 +1429,186 @@ footer p { margin: 4px 0; }
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
   <script>
+// 거꾸로 찾기: 원하는 효과나 가진 재료에서 출발해 좋은 조합을 찾는다.
+// 모든 후보는 cook()으로 실제 계산해서 확인하므로 결과는 요리하기 탭과 같다.
+(function (root) {
+  const D = root.ZDATA || (typeof require !== 'undefined' ? require('./data.js') : null);
+  const C = root.ZCOOK || (typeof require !== 'undefined' ? require('./cook.js') : null);
+  const { EFFECTS, GAMES } = D;
+  const { cook, recipeBook } = C;
+
+  const MAX_POT = 5;
+  const TIMED = (type) => (EFFECTS[type].baseTime || 0) > 0;
+  const isCritItem = (m) => (m.crit || 0) >= 100;                // 용의 소재 · 별의 조각
+  const isRandom = (m) => m.en === 'Monster Extract' || m.tag === 'CookOther'; // 몬스터엑기스 · 요정
+  const hpValue = (res) => (res.fullRecovery ? 120 : res.hp || 0);
+
+  // 결과를 비교할 점수 (클수록 좋음). 효과 크기 → 정렬 기준 → 재료 수 적은 순
+  function effectSize(e) {
+    if (!e) return [0, 0];
+    if (e.extraHearts != null) return [e.extraHearts, 0];
+    if (e.gloomHearts != null) return [e.gloomHearts, 0];
+    if (e.wheels != null) return [e.wheels, 0];
+    return [e.level, e.seconds];
+  }
+
+  function scoreOf(res, sort) {
+    const [size, time] = effectSize(res.effect);
+    const hp = hpValue(res);
+    const few = -res.mats.length;
+    if (sort === 'hp') return [size, hp, time, few];
+    if (sort === 'few') return [size, few, time, hp];
+    return [size, time, hp, few]; // 'time'
+  }
+
+  const better = (a, b) => {
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] > b[i];
+    return false;
+  };
+
+  // 크기 1~5의 중복 조합을 모두 돈다
+  function eachMultiset(items, visit) {
+    const pick = [];
+    const rec = (start) => {
+      if (pick.length) visit(pick);
+      if (pick.length === MAX_POT) return;
+      for (let i = start; i < items.length; i++) {
+        pick.push(items[i]);
+        rec(i);
+        pick.pop();
+      }
+    };
+    rec(0);
+  }
+
+  // 결과가 같은(이름·효과·회복량) 조합은 점수가 가장 좋은 것 하나만 남긴다
+  function topDistinct(found, sort, limit) {
+    found.sort((a, b) => (better(a.score, b.score) ? -1 : better(b.score, a.score) ? 1 : 0));
+    const seen = new Set();
+    const out = [];
+    for (const f of found) {
+      const e = f.res.effect;
+      const key = [f.res.ko, e && effectSize(e).join('/'), hpValue(f.res)].join('|');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(f);
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
+  // 원하는 효과로 찾기
+  // opts: { type, minLevel, allowCrit, allowElixir, sort, limit }
+  function findByEffect(game, opts) {
+    const { type, minLevel = 1, allowCrit = false, allowElixir = true, sort = 'time', limit = 12, pool } = opts;
+    const allowed = pool ? new Set(pool) : null;
+    const mats = GAMES[game].materials.filter((m) => !isRandom(m) && m.tag !== 'CookOre' && (!allowed || allowed.has(m.id)));
+
+    const effItems = mats.filter((m) => m.eff === type && (allowElixir || m.tag !== 'CookInsect'));
+    if (!effItems.length) return [];
+    const neutral = mats.filter((m) => !m.eff && m.tag !== 'CookInsect' && (allowCrit || !isCritItem(m)));
+
+    // 효과 없는 재료 중 시간 · 회복량을 가장 많이 더하는 것만 후보로 둔다 (탐색량 줄이기)
+    const timeOf = (m) => (m.base ?? 30) + (m.sTime || 0);
+    const food = neutral.filter((m) => m.tag !== 'CookEnemy');
+    const pickTop = (list, key, n) => [...list].sort((a, b) => key(b) - key(a)).slice(0, n);
+    let boosters = [
+      ...(TIMED(type) ? pickTop(food, timeOf, 6) : []),
+      ...pickTop(food, (m) => (m.hp || 0) * 2 + (m.sHp || 0), 4),
+      ...(allowElixir ? pickTop(neutral.filter((m) => m.tag === 'CookEnemy'), timeOf, 3) : []),
+    ];
+    boosters = [...new Map(boosters.map((m) => [m.id, m])).values()];
+
+    const candidates = [...effItems, ...boosters];
+    const found = [];
+    eachMultiset(candidates, (pick) => {
+      if (!pick.some((m) => m.eff === type)) return;
+      const ids = pick.map((m) => m.id);
+      const res = cook(ids, game);
+      if (!res || !res.effect || res.effect.type !== type) return;
+      if (res.effect.level != null && res.effect.level < minLevel) return;
+      found.push({ ids, res, score: scoreOf(res, sort) });
+    });
+    return topDistinct(found, sort, limit);
+  }
+
+  // 가진 재료로 찾기
+  // - picks: 회복량이 가장 많은 조합, 가진 재료로 낼 수 있는 효과마다 가장 좋은 조합
+  // - meals: 만들 수 있는 요리마다 기본 조합 하나 (레시피 조건만 채운 것)
+  function findFromInventory(game, ownedIds) {
+    const owned = ownedIds.map((id) => C.material(game, id)).filter((m) => m && !isRandom(m));
+    if (!owned.length) return { picks: [], meals: [] };
+    const pool = owned.map((m) => m.id);
+    const picks = [];
+
+    // 회복량 최대: 회복량을 많이 주는 재료 몇 가지로만 조합한다
+    // 맥스 재료는 체력 완전 회복이라 따로(맥스 효과 최고) 보여주고 여기서는 뺀다
+    const hpItems = [...owned].filter((m) => !['CookOre', 'CookEnemy', 'CookInsect'].includes(m.tag) && m.eff !== 'LifeMaxUp')
+      .sort((a, b) => ((b.hp || 0) * 2 + (b.sHp || 0)) - ((a.hp || 0) * 2 + (a.sHp || 0))).slice(0, 7);
+    let bestHp = null;
+    eachMultiset(hpItems, (pick) => {
+      const ids = pick.map((m) => m.id);
+      const res = cook(ids, game);
+      if (!res || res.kind === 'dubious' || res.kind === 'rockhard') return;
+      const score = [hpValue(res), -ids.length];
+      if (!bestHp || better(score, bestHp.score)) bestHp = { ids, res, score, label: '회복량 최대 (맥스 재료 제외)' };
+    });
+    if (bestHp) picks.push(bestHp);
+
+    for (const type of effectsFor(game)) {
+      if (!owned.some((m) => m.eff === type)) continue;
+      const [top] = findByEffect(game, { type, pool, allowCrit: true, sort: 'time', limit: 1 });
+      if (top) picks.push({ ...top, label: `${EFFECTS[type].prefix} 효과 최고` });
+    }
+
+    const G = GAMES[game];
+    const rows = [...G.recipes, ...G.singles].filter((r) => !['dubious', 'fail', 'rockhard'].includes(r.kind));
+    const meals = new Map();
+    for (const row of rows) {
+      if (meals.has(row.en)) continue;
+      // 레시피의 각 조건을 가진 재료로 채운다 (효과 없는 재료 우선, 조건마다 후보 몇 개만)
+      const choices = row.parts.map((part) => owned
+        .filter((m) => part.some((o) => o === m.id || o === m.tag))
+        .sort((a, b) => (a.eff ? 1 : 0) - (b.eff ? 1 : 0))
+        .slice(0, 4));
+      if (choices.some((c) => !c.length) || row.parts.length > MAX_POT) continue;
+      let tries = 0;
+      const rec = (i, picked) => {
+        if (meals.has(row.en) || tries > 40) return;
+        if (i === row.parts.length) {
+          tries++;
+          const res = cook(picked, game);
+          if (res && res.recipe && res.recipe.en === row.en && res.kind !== 'dubious') {
+            meals.set(row.en, { ids: [...picked], res, score: scoreOf(res, 'hp') });
+          }
+          return;
+        }
+        for (const m of choices[i]) {
+          if (picked.includes(m.id)) continue;
+          picked.push(m.id);
+          rec(i + 1, picked);
+          picked.pop();
+        }
+      };
+      rec(0, []);
+    }
+    const bookOrder = new Map(recipeBook(game).map((r, i) => [r.en, i]));
+    const list = [...meals.values()].sort((a, b) => (bookOrder.get(a.res.recipe.en) ?? 999) - (bookOrder.get(b.res.recipe.en) ?? 999));
+    return { picks, meals: list };
+  }
+
+  // 이 게임에서 찾을 수 있는 효과 목록 (재료가 있는 것만)
+  function effectsFor(game) {
+    const types = new Set(GAMES[game].materials.filter((m) => m.eff && !isRandom(m)).map((m) => m.eff));
+    return Object.keys(EFFECTS).filter((t) => types.has(t));
+  }
+
+  const api = { findByEffect, findFromInventory, effectsFor, TIMED };
+  root.ZFIND = api;
+  if (typeof module !== 'undefined') module.exports = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+  <script>
 (function () {
   const { EFFECTS, GAMES } = window.ZDATA;
   const { cook, recipeBook, optionLabel, material, MAX_HP } = window.ZCOOK;
@@ -1743,12 +2040,179 @@ footer p { margin: 4px 0; }
     loadImages($('#book'));
   }
 
+  // ------------------------------------------------------------ 거꾸로 찾기
+  const { findByEffect, findFromInventory, effectsFor, TIMED } = window.ZFIND;
+  const OWNED_KEY = 'hyrule-cooking-owned-v1';
+  const finder = { mode: 'effect', type: null, invQuery: '' };
+  const owned = (() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(OWNED_KEY)) || {};
+      return { botw: new Set(saved.botw || []), totk: new Set(saved.totk || []) };
+    } catch { return { botw: new Set(), totk: new Set() }; }
+  })();
+  function saveOwned() {
+    try { localStorage.setItem(OWNED_KEY, JSON.stringify({ botw: [...owned.botw], totk: [...owned.totk] })); } catch { /* 저장 불가 */ }
+  }
+
+  function setMode(mode) {
+    finder.mode = mode;
+    document.querySelectorAll('.seg [data-mode]').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+    $('#mode-effect').hidden = mode !== 'effect';
+    $('#mode-inventory').hidden = mode !== 'inventory';
+    $('#find-results').innerHTML = '';
+  }
+
+  function renderEffectChips() {
+    const types = effectsFor(state.game);
+    if (!types.includes(finder.type)) finder.type = types.includes('AttackUp') ? 'AttackUp' : types[0];
+    $('#eff-chips').innerHTML = types.map((t) => `
+      <button type="button" class="chip${t === finder.type ? ' active' : ''}" data-eff="${t}" title="${esc(EFFECTS[t].ko)}">
+        ${EFFECTS[t].icon} ${esc(EFFECTS[t].prefix)} <small>${esc(EFFECTS[t].ko)}</small>
+      </button>`).join('');
+    const E = EFFECTS[finder.type];
+    const timed = TIMED(finder.type);
+    $('#f-level-wrap').hidden = !timed;
+    if (timed) {
+      const prev = Number($('#f-level').value) || 1;
+      $('#f-level').innerHTML = Array.from({ length: E.max }, (_, i) => `<option value="${i + 1}">Lv${i + 1} 이상</option>`).join('');
+      $('#f-level').value = String(Math.min(prev, E.max));
+    }
+  }
+
+  const CAT_KO = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.ko]));
+  function renderInventory() {
+    const q = finder.invQuery.trim().toLowerCase();
+    const mine = owned[state.game];
+    const groups = new Map();
+    for (const m of available()) {
+      if (m.en === 'Monster Extract' || m.tag === 'CookOther' || m.tag === 'CookOre') continue;
+      if (q && !m.ko.toLowerCase().includes(q) && !m.en.toLowerCase().includes(q)) continue;
+      if (!groups.has(m.cat)) groups.set(m.cat, []);
+      groups.get(m.cat).push(m);
+    }
+    $('#inv-grid').innerHTML = [...groups].map(([cat, list]) => `
+      <div class="inv-group">
+        <h4>${esc(CAT_KO[cat] || cat)}</h4>
+        <div class="inv-items">${list.map((m) => `
+          <button type="button" class="inv-item" data-own="${m.id}" aria-pressed="${mine.has(m.id)}">
+            ${thumb(m.en, state.game, m.cat)}${esc(m.ko)}
+          </button>`).join('')}</div>
+      </div>`).join('') || '<div class="find-empty">검색 결과가 없어요</div>';
+    updateOwnedCount();
+    loadImages($('#inv-grid'));
+  }
+  function updateOwnedCount() {
+    const n = [...owned[state.game]].filter((id) => material(state.game, id)).length;
+    $('#inv-count').textContent = n ? `(${n}개 선택)` : '';
+  }
+
+  function resultMeta(res) {
+    const bits = [];
+    if (res.fullRecovery) bits.push('❤️ 전체 회복');
+    else if (res.hp > 0) bits.push(`❤️ ${heartsText(res.hp)}하트`);
+    const e = res.effect;
+    if (e) {
+      let t = `${e.icon} ${esc(e.prefix)}`;
+      if (e.level) t += ` <span class="stars">${'★'.repeat(e.level)}${'☆'.repeat(Math.max(0, e.maxLevel - e.level))}</span> ${fmtTime(e.seconds)}`;
+      if (e.extraHearts != null) t += ` 노란 하트 +${e.extraHearts}`;
+      if (e.wheels != null) t += ` 스태미나 ${e.wheels}바퀴`;
+      if (e.gloomHearts != null) t += ` 독기 회복 ${e.gloomHearts}칸`;
+      bits.push(t);
+    }
+    if (res.crit >= 100) bits.push('대성공 확정');
+    return bits.join(' · ');
+  }
+
+  let findItems = [];
+  function findItemHtml(f, idx) {
+    const counts = new Map();
+    f.ids.forEach((id) => counts.set(id, (counts.get(id) || 0) + 1));
+    const ings = [...counts].map(([id, n]) => {
+      const m = material(state.game, id);
+      return `<span class="find-ing">${thumb(m.en, state.game, m.cat)}${esc(m.ko)}${n > 1 ? ` <b>×${n}</b>` : ''}</span>`;
+    }).join('');
+    const emojiKey = f.res.kind === 'dish' ? 'dish' : f.res.kind;
+    return `<div class="find-item">
+      ${thumb(f.res.img, state.game, emojiKey, 'sm')}
+      <div>
+        ${f.label ? `<span class="find-tag">${esc(f.label)}</span>` : ''}
+        <div class="find-name">${esc(f.res.ko)}</div>
+        <div class="find-meta">${resultMeta(f.res)}</div>
+        <div class="find-ings">${ings}</div>
+      </div>
+      <button type="button" class="ghost" data-use="${idx}">냄비에 담기</button>
+    </div>`;
+  }
+
+  function showFindResults(sections) {
+    findItems = [];
+    const html = sections.map(({ title, items, empty }) => {
+      const start = findItems.length;
+      findItems.push(...items);
+      return `<div class="find-section">
+        ${title ? `<h3>${esc(title)}</h3>` : ''}
+        ${items.length ? `<div class="find-list">${items.map((f, i) => findItemHtml(f, start + i)).join('')}</div>` : `<div class="find-empty">${esc(empty || '찾은 조합이 없어요')}</div>`}
+      </div>`;
+    }).join('');
+    $('#find-results').innerHTML = html;
+    loadImages($('#find-results'));
+    $('#find-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // 계산이 끝날 때까지 버튼에 진행 상태를 보여준다
+  function runBusy(button, work) {
+    const label = button.innerHTML;
+    button.disabled = true;
+    button.textContent = '찾는 중…';
+    setTimeout(() => {
+      try { work(); } finally { button.disabled = false; button.innerHTML = label; updateOwnedCount(); }
+    }, 30);
+  }
+
+  function runEffectSearch() {
+    runBusy($('#f-go'), () => {
+      const E = EFFECTS[finder.type];
+      const minLevel = TIMED(finder.type) ? Number($('#f-level').value) : 1;
+      const items = findByEffect(state.game, {
+        type: finder.type, minLevel, sort: $('#f-sort').value,
+        allowCrit: $('#f-crit').checked, allowElixir: $('#f-elixir').checked,
+      });
+      showFindResults([{
+        title: `${E.prefix} (${E.ko})${TIMED(finder.type) ? ` Lv${minLevel} 이상` : ''} 추천 조합`,
+        items,
+        empty: TIMED(finder.type) && minLevel > 1 ? '이 조건으로는 만들 수 없어요. 최소 단계를 낮추거나 용의 소재 쓰기를 켜 보세요.' : '찾은 조합이 없어요',
+      }]);
+    });
+  }
+
+  function runInventorySearch() {
+    const ids = [...owned[state.game]].filter((id) => material(state.game, id));
+    if (!ids.length) {
+      showFindResults([{ title: '', items: [], empty: '먼저 가진 재료를 체크하세요.' }]);
+      return;
+    }
+    runBusy($('#inv-go'), () => {
+      const { picks, meals } = findFromInventory(state.game, ids);
+      showFindResults([
+        { title: '추천', items: picks },
+        { title: `만들 수 있는 요리 ${meals.length}가지`, items: meals, empty: '가진 재료로 만들 수 있는 요리가 없어요' },
+      ]);
+    });
+  }
+
+  function renderFinder() {
+    renderEffectChips();
+    renderInventory();
+    $('#find-results').innerHTML = '';
+  }
+
   function render() {
     renderGameSwitch();
     renderCats();
     renderGrid();
     renderCook();
     renderBook();
+    renderFinder();
   }
 
   // ------------------------------------------------------------ 이벤트
@@ -1764,6 +2228,39 @@ footer p { margin: 4px 0; }
     document.querySelectorAll('.tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${b.dataset.tab}`));
   });
 
+  document.querySelector('.seg').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-mode]');
+    if (b && b.dataset.mode !== finder.mode) setMode(b.dataset.mode);
+  });
+  $('#eff-chips').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-eff]');
+    if (!b) return;
+    finder.type = b.dataset.eff;
+    renderEffectChips();
+    $('#find-results').innerHTML = '';
+  });
+  $('#f-go').addEventListener('click', runEffectSearch);
+  $('#inv-go').addEventListener('click', runInventorySearch);
+  $('#inv-search').addEventListener('input', (e) => { finder.invQuery = e.target.value; renderInventory(); });
+  $('#inv-clear').addEventListener('click', () => { owned[state.game].clear(); saveOwned(); renderInventory(); });
+  $('#inv-grid').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-own]');
+    if (!b) return;
+    const set = owned[state.game];
+    const id = b.dataset.own;
+    if (set.has(id)) set.delete(id); else set.add(id);
+    b.setAttribute('aria-pressed', String(set.has(id)));
+    saveOwned();
+    updateOwnedCount();
+  });
+  $('#find-results').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-use]');
+    if (!b) return;
+    state.pot = findItems[Number(b.dataset.use)].ids.slice(0, MAX_POT);
+    document.querySelector('.tabs button[data-tab="cook"]').click();
+    renderCook();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
   $('#grid').addEventListener('click', (e) => {
     const take = e.target.closest('[data-take]');
     if (take) { takeFromPot(take.dataset.take); return; }

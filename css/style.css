@@ -299,3 +299,76 @@ footer p { margin: 4px 0; }
   font-size: 14px; opacity: 0; pointer-events: none; transition: all .2s;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- 거꾸로 찾기 ---------- */
+.finder { display: grid; gap: 14px; }
+.seg {
+  display: inline-flex; justify-self: start; background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: 999px; padding: 4px; gap: 2px; max-width: 100%;
+}
+.seg button {
+  border: 0; background: transparent; padding: 7px 14px; border-radius: 999px;
+  font-weight: 600; font-size: 14px; color: var(--muted);
+}
+.seg button.active { background: var(--card); color: var(--text); box-shadow: var(--shadow); }
+.mode { display: grid; gap: 12px; }
+.f-label { font-size: 13px; font-weight: 700; color: var(--muted); }
+.f-help { margin: 0; font-size: 13px; color: var(--muted); }
+.eff-chips .chip { display: inline-flex; align-items: center; gap: 4px; }
+.eff-chips .chip small { color: var(--muted); font-size: 11px; }
+.eff-chips .chip.active small { color: inherit; opacity: 0.75; }
+.f-row { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.f-field { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+.f-field select {
+  font: inherit; color: var(--text); background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 8px;
+}
+.f-check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.f-check input { width: 18px; height: 18px; accent-color: var(--accent); }
+.primary {
+  justify-self: start; border: 0; border-radius: 10px; padding: 10px 18px;
+  background: var(--accent); color: var(--card); font-weight: 700; font-size: 15px;
+}
+.primary:hover { filter: brightness(1.08); }
+.primary:disabled { opacity: 0.6; cursor: progress; }
+
+.inv-head { display: flex; gap: 8px; align-items: center; }
+.inv-head input { flex: 1; min-width: 0; }
+.inv-grid { display: grid; gap: 10px; max-height: 420px; overflow-y: auto; padding-right: 4px; }
+.inv-group { display: grid; gap: 6px; }
+.inv-group h4 { margin: 0; font-size: 12px; color: var(--muted); }
+.inv-items { display: flex; flex-wrap: wrap; gap: 6px; }
+.inv-item {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px 3px 4px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: 13px;
+}
+.inv-item .thumb { width: 24px; height: 24px; }
+.inv-item .thumb .emoji { font-size: 16px; }
+.inv-item[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.inv-item[aria-pressed="true"]::before { content: "✓"; color: var(--accent); font-weight: 700; margin-left: 4px; }
+
+.find-results { display: grid; gap: 10px; margin-top: 16px; }
+.find-empty { color: var(--muted); text-align: center; padding: 28px 8px; }
+.find-section { display: grid; gap: 8px; }
+.find-section h3 { font-size: 15px; margin: 6px 0 0; }
+.find-list { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+@media (max-width: 420px) { .find-list { grid-template-columns: minmax(0, 1fr); } }
+.find-item {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px;
+}
+.find-tag {
+  display: inline-block; font-size: 11px; font-weight: 700; color: var(--accent-2);
+  border: 1px solid var(--accent-2); border-radius: 6px; padding: 0 5px; margin-bottom: 2px;
+}
+.find-name { font-weight: 700; font-size: 15px; }
+.find-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.find-meta .stars { font-size: 11px; }
+.find-ings { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.find-ing {
+  display: inline-flex; align-items: center; gap: 2px; font-size: 12px; background: var(--bg-2);
+  border-radius: 999px; padding: 1px 8px 1px 2px;
+}
+.find-ing .thumb { width: 20px; height: 20px; }
+.find-ing .thumb .emoji { font-size: 13px; }
+.find-ing b { font-weight: 700; color: var(--accent); }

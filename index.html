@@ -24,6 +24,7 @@
 
   <nav class="tabs" role="tablist">
     <button type="button" role="tab" data-tab="cook" class="active">요리하기</button>
+    <button type="button" role="tab" data-tab="find">거꾸로 찾기</button>
     <button type="button" role="tab" data-tab="book">레시피 도감</button>
   </nav>
 
@@ -57,6 +58,49 @@
       </div>
     </section>
 
+    <section id="tab-find" class="tab-panel">
+      <div class="card finder">
+        <div class="seg" role="tablist" aria-label="찾는 방법">
+          <button type="button" role="tab" data-mode="effect" class="active">원하는 효과로</button>
+          <button type="button" role="tab" data-mode="inventory">가진 재료로</button>
+        </div>
+
+        <div id="mode-effect" class="mode">
+          <div class="f-label">효과</div>
+          <div id="eff-chips" class="chips eff-chips"></div>
+          <div class="f-row">
+            <label class="f-field" id="f-level-wrap">최소 단계
+              <select id="f-level"></select>
+            </label>
+            <label class="f-field">정렬
+              <select id="f-sort">
+                <option value="time">효과 지속시간 긴 순</option>
+                <option value="hp">회복량 많은 순</option>
+                <option value="few">재료 적은 순</option>
+              </select>
+            </label>
+          </div>
+          <div class="f-row">
+            <label class="f-check"><input type="checkbox" id="f-crit"> 용의 소재·별의 조각 쓰기</label>
+            <label class="f-check"><input type="checkbox" id="f-elixir" checked> 물약(벌레류+몬스터 부위)도 찾기</label>
+          </div>
+          <button type="button" id="f-go" class="primary">조합 찾기</button>
+        </div>
+
+        <div id="mode-inventory" class="mode" hidden>
+          <p class="f-help">가진 재료를 눌러 체크하세요. 개수는 따지지 않아서, 같은 재료를 여러 개 쓰는 조합도 나와요. 체크한 재료는 이 브라우저에 저장돼요.</p>
+          <div class="inv-head">
+            <input id="inv-search" type="search" placeholder="재료 검색 (한글/영어)" autocomplete="off">
+            <button type="button" id="inv-clear" class="ghost">모두 해제</button>
+          </div>
+          <div id="inv-grid" class="inv-grid"></div>
+          <button type="button" id="inv-go" class="primary">만들 수 있는 요리 찾기 <span id="inv-count"></span></button>
+        </div>
+      </div>
+
+      <div id="find-results" class="find-results" aria-live="polite"></div>
+    </section>
+
     <section id="tab-book" class="tab-panel">
       <div class="card">
         <div class="picker-head">
@@ -76,6 +120,7 @@
 
   <script src="js/data.js"></script>
   <script src="js/cook.js"></script>
+  <script src="js/finder.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
